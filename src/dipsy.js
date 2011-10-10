@@ -31,18 +31,22 @@ dipsy.Pops = function(root)
 
 dipsy.Pops.prototype = 
 {
-    add: function(element, content)
+    //TODO make backbone classes with nice options
+    add: function(element, content, anchor, follow_mouse)
     {
-        var newpop = 
-        new dipsy.Pop(  this.root,
+        var newpop = new dipsy.Pop(  this.root,
                         this.pops.length, 
                         element,
-                        content);
+                        content,
+                        anchor,
+                        follow_mouse);
+
+        //console.log(newpop);
         this.pops.push( newpop );
     },
 }
 
-dipsy.Pop = function(root, id, pelement, content)
+dipsy.Pop = function(root, id, pelement, content, anchor, follow_mouse)
 {
     //this.event = d3.dispatch("dipsy");
     this.id = id;
@@ -50,12 +54,40 @@ dipsy.Pop = function(root, id, pelement, content)
     var pbbox = pelement.getBBox();
     this.parent_bbox = pbbox;
     this.content = content;
-    //this.nve = pelement.nearestViewportElement;
+    //not sure if its a good idea to store this for every one (vs accessing)
+    this.nve = pelement.nearestViewportElement;
 
-    this.follow_mouse = true;
+    this.follow_mouse = follow_mouse;
+    console.log(this.follow_mouse);
+    this.stuck = false;
 
-    this.anchor = { "x": pbbox.x + pbbox.width/2,
-                    "y": pbbox.y + pbbox.height/2}
+    if(anchor)
+    {
+        this.anchor = anchor;
+    }
+    else
+    {
+
+        //var matrix = this.pelement.getCTM();
+        var matrix = this.pelement.getTransformToElement(this.nve);
+        //var mp = this.pelement.nearestViewportElement.createSVGPoint();
+        var mp = this.nve.createSVGPoint();
+        mp.x = pbbox.x;
+        mp.y = pbbox.y;
+        var sp = mp.matrixTransform(matrix);
+        /*
+        console.log(content);
+        console.log("bb.x: " + mp.x + " bb.y: " + mp.y);
+        console.log("sp.x: " + sp.x + " sp.y: " + sp.y);
+        */
+
+        //this.anchor = { "x": pbbox.x + pbbox.width/2,
+        //                "y": pbbox.y + pbbox.height/2}
+        this.anchor = { "x": sp.x + pbbox.width/2,
+                        "y": sp.y + pbbox.height/2}
+        //console.log(this.anchor);
+
+    }
 
 
     var that = this;
@@ -158,17 +190,16 @@ dipsy.Pop = function(root, id, pelement, content)
 
     var parent_move = function()
     {
-        /*
-        var matrix = that.pelement.getScreenCTM();
-        var mp = that.nve.createSVGPoint();
-        mp.x = d3.event.clientX;
-        mp.y = d3.event.clientY;
-        var sp = mp.matrixTransform(matrix.inverse());
-        //that.element.attr("transform", "translate(" + [that.offset.x + sp.x, that.offset.y + sp.y] + ")");
-        */
         //console.log(d3.svg.mouse(that.pelement));
-        var m = d3.svg.mouse(that.pelement);
-        that.element.attr("transform", "translate(" + [that.offset.x + m[0], that.offset.y + m[1]] + ")");
+        if(!that.stuck)
+        {
+            var m = d3.svg.mouse(that.pelement);
+            that.element.attr("transform", "translate(" + [that.offset.x + m[0], that.offset.y + m[1]] + ")");
+        }
+    }
+    var parent_click = function()
+    {
+        that.stuck = !that.stuck;
     }
 
 
@@ -176,6 +207,7 @@ dipsy.Pop = function(root, id, pelement, content)
     var papa = d3.select(this.pelement)
         .on("mouseover.dipsy", parent_over)
         .on("mouseout.dipsy", parent_out)
+        .on("click.dipsy", parent_click)
 
     //mouse events on the tooltip itself
     this.element.on("mouseout.dipsy", this_out);
@@ -201,7 +233,8 @@ dipsy.Pop.prototype = {
     hide: function()
     {
         //console.log("hide");
-        this.element.attr("visibility", "hidden");
+        if(!this.stuck)
+            this.element.attr("visibility", "hidden");
     },
 
     remove: function()

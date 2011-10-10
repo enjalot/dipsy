@@ -2,8 +2,11 @@
 <html>
  <head>
    <title>Pie Chart</title>
-   <script type="text/javascript" src="http://mbostock.github.com/d3/d3.js?2.3.0"></script>
-   <script type="text/javascript" src="http://mbostock.github.com/d3/d3.layout.js?2.3.0"></script>
+    <script type="text/javascript" src="../../lib/d3/d3.js"></script> 
+    <script type="text/javascript" src="../../lib/d3/d3.layout.js"></script> 
+
+    <script type="text/javascript" src="../../src/dipsy.js"></script>
+
    <style type="text/css">
 
 body {
@@ -14,9 +17,35 @@ body {
  </head>
  <body>
 
-     <p style="font-size:36pt;">Click in the box to bake a pie!<p>
+     <p style="font-size:24pt;">Click on a pie</p>
 
-   <script type="text/javascript">
+     <div id="chart"></div>
+
+    <script type="text/javascript">
+        
+    //setup svg canvas
+    var svg = d3.select("#chart")
+        .append("svg:svg")
+            //.attr("width", "1000")
+            //.attr("height", "700")
+            .attr("width", "1200")
+            .attr("height", "750")
+            .attr("viewBox", "0 0 1000 700")
+            .attr("preserveAspectRatio", "xMinYMin meet")
+            .attr("id", "charts");
+            //.on("click", clickypie)
+    var bgrect = svg.append("svg:rect")
+        .attr("width", "100%")
+        .attr("height", "100%")
+        .attr("stroke", "#000")
+        .attr("stroke-width", 1)
+        .attr("fill", "none")
+
+
+
+    var labels = new dipsy.Pops(svg)
+    labels.follow_mouse = true;
+
 
 
     function bakepie(classname, data, x, y, r)
@@ -41,61 +70,95 @@ body {
 
         var paths = arcs.append("svg:path")
             .attr("fill", function(d, i) { return color(i); })
-            .attr("fill-opacity", .6);
-        
-        var tweenPie = function (b) {
-         b.innerRadius = 0;
-         var i = d3.interpolate({startAngle: 0, endAngle: 0}, b);
-         return function(t) {
-           return arc(i(t));
-         };
-        }
+            .attr("fill-opacity", .6)
+            .attr("d", arc)
+            .attr("tooltip", function(d,i)
+            {
+            console.log("bbox");
+                var bbox = this.getBBox();
+                //console.log(bbox);
+                //console.log(this.parentNode);
+                //console.log(matrix);
+            
+                /*
+                var p = svg.node().createSVGPoint();
+                var matrix = this.getTransformToElement(this.nearestViewportElement);
+                var cp = p.matrixTransform(matrix);
+                console.log(p);
+                console.log(matrix);
+                svg.append("svg:circle")
+                .attr("cx", cp.x)
+                .attr("cy", cp.y)
+                .attr("r", 10)
+                .attr("stroke", "none")
+                .attr("fill", "#ff0000")
+                .attr("fill-opacity", .7);
+                */
 
-        var tweenDonut = function (b) {
-         b.innerRadius = r * .6;
-         var i = d3.interpolate({innerRadius: 0}, b);
-         return function(t) {
-           return arc(i(t));
-         };
-        }
+                var lp = place_label(this, d, r + 10, bbox);
+                //var sp = lp.matrixTransform(matrix);
+                //console.log(xy);
+                //labels.add(this, d.value);
+                var content_format = d3.format(".2r");
+                var content = content_format(d.value);
+                labels.add(this, content, lp, false);
+               
+            })
+            .on("mouseover", function(d, i) 
+            {
+                d3.select(this)
+                    .attr("fill-opacity", 1);
+            })
+            .on("mouseout", function(d, i) 
+            {
+                d3.select(this)
+                    .attr("fill-opacity", .6);
+            });
 
-        paths.transition()
-           .ease("bounce")
-           .duration(2000)
-           .attrTween("d", tweenPie);
-
-        paths.transition()
-           .ease("elastic")
-           .delay(function(d, i) { return 2000 + i * 50; })
-           .duration(750)
-           .attrTween("d", tweenDonut);
 
     }
 
+    var place_label = function(element, d, r, bbox)
+    {   
+        //calculate the angle for the center of the arc
+        var ao = -Math.PI / 2;                      //arc angle offset (default from d3)
+        var aa = (d.startAngle + d.endAngle) / 2;   //center angle
+        var tx = Math.cos(aa + ao);
+        var ty = Math.sin(aa + ao);
+        //scale by input radius
+        tx *= r;
+        ty *= r;
+        //return [tx, ty];
+        return make_point(element, [tx,ty]);
+    }   
 
-    //setup svg canvas
-    d3.select("body")
-        .append("svg:svg")
-            .attr("width", 1000)
-            .attr("height", 700)
-            .attr("id", "charts")
-            .on("click", clickypie)
-            .append("svg:rect")
-                .attr("width", "100%")
-                .attr("height", "100%")
-                .attr("stroke", "#000")
-                .attr("stroke-width", 3)
-                .attr("fill", "none")
+    var make_point = function(element, xy)
+    {
+        //var matrix1 = element.getCTM();
+        //console.log(matrix1);
+        //var matrix = element.getScreenCTM();
+        var p = element.nearestViewportElement.createSVGPoint();
+        var matrix = element.getTransformToElement(element.nearestViewportElement);
+        console.log(matrix);
+        p.x = xy[0];
+        p.y = xy[1];
+        var sp = p.matrixTransform(matrix);
+        return sp;
+    }
 
-    count = 0
-    function clickypie()
-    {  
-        count += 1;
-        var xy = d3.svg.mouse(this);
-        var r = 50 + Math.random() * 100;
-        var data = d3.range(10).map(Math.random)
-        bakepie("pie"+count, data, xy[0], xy[1], r);
-    };
+    
+
+
+    for(var i = 0; i < 5; i++)
+    {
+        for(var j = 0; j < 3; j++)
+        {
+            var r = 50 + Math.random() * 50;
+            var data = d3.range(7).map(Math.random);
+            //var data = d3.range(7).map(function(d) { return 10;});
+            bakepie("pie"+ (j*10+i), data,  100 + i*(200), 120 + j*(210), r);
+        }
+    }
 
     /*
     var data = d3.range(10).map(Math.random)
@@ -106,7 +169,17 @@ body {
     bakepie("pie3", data, 300, 300, 200);
     */
 
-
+/*
+    count = 0
+    function clickypie()
+    {  
+        count += 1;
+        var xy = d3.svg.mouse(this);
+        var r = 25 + Math.random() * 25;
+        var data = d3.range(10).map(Math.random)
+        bakepie("pie"+count, data, xy[0], xy[1], r);
+    };
+    */
    
    </script>
  </body>

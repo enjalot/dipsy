@@ -1,8 +1,11 @@
 
 var svg = d3.select("#chart").append("svg:svg")
-    .attr("width", "100%")
-    .attr("height", "100%")
-    .attr("viewBox", "0 0 960 500");
+    .attr("width", "960")
+    .attr("height", "500")
+    //.attr("width", "100%")
+    //.attr("height", "100%")
+    .attr("viewBox", "0 0 960 500")
+    .attr("preserveAspectRatio", "xMinYMin meet");
 
 var tooltips = new dipsy.Pops(svg)
     tooltips.follow_mouse = true;
@@ -60,12 +63,12 @@ d3.json("../data/enj_states_array.json", function(json) {
                             .attr("y", 50)
                             .attr("fill", "#f00")
                     }
-                    tooltips.add(this, make_tt);
+                    tooltips.add(this, make_tt, null, true);
                 }
                 else
                 {
                     //create a custom tooltip just using a string
-                    tooltips.add(this, d.name);
+                    tooltips.add(this, d.name, null, true);
                 }
             });
 
