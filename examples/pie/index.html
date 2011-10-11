@@ -74,35 +74,13 @@ body {
             .attr("d", arc)
             .attr("tooltip", function(d,i)
             {
-            console.log("bbox");
-                var bbox = this.getBBox();
-                //console.log(bbox);
-                //console.log(this.parentNode);
-                //console.log(matrix);
-            
-                /*
-                var p = svg.node().createSVGPoint();
-                var matrix = this.getTransformToElement(this.nearestViewportElement);
-                var cp = p.matrixTransform(matrix);
-                console.log(p);
-                console.log(matrix);
-                svg.append("svg:circle")
-                .attr("cx", cp.x)
-                .attr("cy", cp.y)
-                .attr("r", 10)
-                .attr("stroke", "none")
-                .attr("fill", "#ff0000")
-                .attr("fill-opacity", .7);
-                */
-
-                var lp = place_label(this, d, r + 10, bbox);
-                //var sp = lp.matrixTransform(matrix);
-                //console.log(xy);
-                //labels.add(this, d.value);
+                var lp = place_label(d, r + 30);
                 var content_format = d3.format(".2r");
                 var content = content_format(d.value);
-                labels.add(this, content, lp, false);
-               
+                var label = labels.add(this, content);
+                label.setAnchor(lp);
+                //label.setStuck(true);
+                //label.show();
             })
             .on("mouseover", function(d, i) 
             {
@@ -118,7 +96,7 @@ body {
 
     }
 
-    var place_label = function(element, d, r, bbox)
+    var place_label = function(d, r)
     {   
         //calculate the angle for the center of the arc
         var ao = -Math.PI / 2;                      //arc angle offset (default from d3)
@@ -128,25 +106,8 @@ body {
         //scale by input radius
         tx *= r;
         ty *= r;
-        //return [tx, ty];
-        return make_point(element, [tx,ty]);
+        return {"x":tx, "y":ty};
     }   
-
-    var make_point = function(element, xy)
-    {
-        //var matrix1 = element.getCTM();
-        //console.log(matrix1);
-        //var matrix = element.getScreenCTM();
-        var p = element.nearestViewportElement.createSVGPoint();
-        var matrix = element.getTransformToElement(element.nearestViewportElement);
-        console.log(matrix);
-        p.x = xy[0];
-        p.y = xy[1];
-        var sp = p.matrixTransform(matrix);
-        return sp;
-    }
-
-    
 
 
     for(var i = 0; i < 5; i++)

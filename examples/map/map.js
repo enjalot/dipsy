@@ -63,12 +63,14 @@ d3.json("../data/enj_states_array.json", function(json) {
                             .attr("y", 50)
                             .attr("fill", "#f00")
                     }
-                    tooltips.add(this, make_tt, null, true);
+                    var tt = tooltips.add(this, make_tt);
+                    tt.setFollowMouse(true);
                 }
                 else
                 {
                     //create a custom tooltip just using a string
-                    tooltips.add(this, d.name, null, true);
+                    var tt = tooltips.add(this, d.name);
+                    tt.setFollowMouse(true);
                 }
             });
 
