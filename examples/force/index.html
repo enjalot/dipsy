@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+ <head>
+   <title>Pie Chart</title>
+    <script type="text/javascript" src="../../lib/d3/d3.js"></script> 
+    <script type="text/javascript" src="../../lib/d3/d3.geom.js"></script>
+    <script type="text/javascript" src="../../lib/d3/d3.layout.js"></script> 
+
+    <script type="text/javascript" src="../../src/dipsy.js"></script>
+
+   <style type="text/css">
+
+body {
+ font: 10px sans-serif;
+}
+
+   </style>
+ </head>
+ <body>
+
+     <p style="font-size:24pt;">Click on a pie</p>
+
+     <div id="chart"></div>
+
+    <script type="text/javascript">
+        
+    var w = 800,
+        h = 600;
+    //setup svg canvas
+    var svg = d3.select("#chart")
+        .append("svg:svg")
+            //.attr("width", "1000")
+            //.attr("height", "700")
+            .attr("width", w)
+            .attr("height", h)
+            //.attr("viewBox", "0 0 " + w + " " + h)
+            .attr("viewBox", "0 0 800 600")
+            .attr("preserveAspectRatio", "xMinYMin meet")
+            .attr("id", "charts");
+            //.on("click", clickypie)
+
+    var bgrect = svg.append("svg:rect")
+        .attr("width", "100%")
+        .attr("height", "100%")
+        .attr("stroke", "#000")
+        .attr("stroke-width", 1)
+        .attr("fill", "none")
+
+
+
+    var labels = new dipsy.Pops(svg)
+    labels.follow_mouse = true;
+
+    //force layout
+    var force = d3.layout.force()
+        .gravity(0)
+        .charge(-5)
+        .size([w, h]);
+
+    var nodes = force.nodes();
+
+    function bakepie(classname, data, x, y, r)
+    { 
+        //color could be made a parameter
+        var color = d3.scale.category10()
+        var arc = d3.svg.arc().outerRadius(r)
+        var donut = d3.layout.pie()
+            .sort(d3.descending);
+
+        var pie = d3.select("#charts")
+            .append("svg:g")
+                //.data([data.sort(d3.descending)])
+                .data([data])
+                .attr("class", classname);
+
+        var arcs = pie.selectAll("g.arc")
+           .data(donut)
+         .enter().append("svg:g")
+           .attr("class", "arc")
+           .attr("transform", "translate(" + x + "," + y + ")");
+
+
+        var paths = arcs.append("svg:path")
+            .attr("fill", function(d, i) { return color(i); })
+            .attr("fill-opacity", .6)
+            .attr("d", arc)
+            .attr("tooltip", function(d,i)
+            {
+                var lp = place_label(d, r+20);
+                var content_format = d3.format(".2r");
+                var content = content_format(d.value);
+                var label = labels.add(this, content);
+                label.setCleat(lp);
+                label.anchor = label.getCleat();//force anchor
+                label.setStuck(true);
+                label.setOffset("center");
+                label.show();
+                nodes.push(label.getCleat());
+            })
+            .on("mouseover", function(d, i) 
+            {
+                d3.select(this)
+                    .attr("fill-opacity", 1);
+            })
+            .on("mouseout", function(d, i) 
+            {
+                d3.select(this)
+                    .attr("fill-opacity", .6);
+            });
+        
+
+            //force layout
+            force.on("tick", function(e) 
+            {
+                var k = e.alpha * .1;
+                nodes.forEach(function(node, i) 
+                {
+                    var anchor = labels.pops[i].anchor;
+                    node.x += (anchor.x - node.x) * k;
+                    node.y += (anchor.y - node.y) * k;
+
+                    node.x += .003 * (x - node.x) * -k;
+                    node.y += .003 * (y - node.y) * -k;
+                
+                    labels.pops[i].setCleat(node, false);
+                });
+
+            });
+
+
+    }
+
+    var place_label = function(d, r)
+    {   
+        //calculate the angle for the center of the arc
+        var ao = -Math.PI / 2;                      //arc angle offset (default from d3)
+        var aa = (d.startAngle + d.endAngle) / 2;   //center angle
+        var tx = Math.cos(aa + ao);
+        var ty = Math.sin(aa + ao);
+        //scale by input radius
+        tx *= r;
+        ty *= r;
+        return {"x":tx, "y":ty};
+    }   
+
+    var data = d3.range(10).map(Math.random)
+    bakepie("pie1", data, 400, 300, 100);
+/*
+    for(var i = 0; i < 5; i++)
+    {
+        for(var j = 0; j < 3; j++)
+        {
+            var r = 50 + Math.random() * 50;
+            var data = d3.range(7).map(Math.random);
+            //var data = d3.range(7).map(function(d) { return 10;});
+            bakepie("pie"+ (j*10+i), data,  100 + i*(200), 120 + j*(210), r);
+        }
+    }
+*/
+
+
+    force.start();
+    //force.stop();
+
+
+    svg.on("click", function()
+    {
+        force.stop();
+    });
+
+
+
+
+   </script>
+ </body>
+</html>

@@ -28,7 +28,7 @@ dipsy.Pops = function(root)
 dipsy.Pops.prototype = 
 {
     //TODO make backbone classes with nice options
-    add: function(element, content, anchor, follow_mouse)
+    add: function(element, content, cleat, follow_mouse)
     {
         var newpop = new dipsy.Pop(  this.root,
                         this.pops.length, 
@@ -64,7 +64,7 @@ dipsy.Pop = function(root, id, pelement, content)
     var pbbox = pelement.getBBox();
     this.parent_bbox = pbbox;
     this.content = content;
-    this.anchor = null;
+    this.cleat = null;
     this.offset = null;
     //not sure if its a good idea to store this for every one (vs accessing)
     this.nve = pelement.nearestViewportElement;
@@ -72,12 +72,12 @@ dipsy.Pop = function(root, id, pelement, content)
     this.follow_mouse = false;
     this.stuck = false;
 
-    var anchor = { "x": pbbox.x + pbbox.width/2,
+    var cleat = { "x": pbbox.x + pbbox.width/2,
                    "y": pbbox.y + pbbox.height/2}
 
     this.init();
     
-    this.setAnchor(anchor);
+    this.setCleat(cleat);
     this.setMouseHandlers();
     
     this.hide();
@@ -123,10 +123,9 @@ dipsy.Pop.prototype = {
             .attr("fill", "#fff")
             .attr("fill-opacity", .5);
 
-        this.offset = { "x":  -w/2,
-                        "y":  -h - 10};
-
-    },
+        this.setOffset();
+        
+     },
 
     show: function()
     {
@@ -146,9 +145,10 @@ dipsy.Pop.prototype = {
         //console.log("remove");
     },
 
-    setAnchor: function(point, transform)
+    setCleat: function(point, transform)
     {
-        transform = transform || true;
+        //default value of transform should be true
+        if(typeof(transform) == 'undefined') transform = true;
         if(transform)
         {
             var matrix = this.pelement.getTransformToElement(this.nve);
@@ -156,20 +156,53 @@ dipsy.Pop.prototype = {
             mp.x = point.x;
             mp.y = point.y;
             var p = mp.matrixTransform(matrix);
-            this.anchor = p;
+            this.cleat = p;
         }
         else
         {
-            this.anchor = point;
+            this.cleat = point;
         }
         this.move();
-        //console.log(this.anchor);
+        //console.log(this.cleat);
+    },
+
+    getCleat: function()
+    {
+        return this.cleat;
+    },
+
+    setOffset: function(offset)
+    {
+        if(typeof(offset) == "string")
+        {
+            var cbbox = this.element.node().getBBox();
+            var w = cbbox.width + 10;
+            var h = cbbox.height + 5;
+
+            switch(offset)
+            {
+                case "center":
+                    this.offset = {"x": w/2, "y":h/2};
+                case "S":
+                    this.offset = { "x":  -w/2, "y":  -h -10};
+                default:
+                    this.offset = {"x": 0, "y": 0};
+            }
+        }
+        else if(typeof(offset) == "undefined")
+        {
+            this.offset = {"x": 0, "y": 0};
+        }
+        else
+        {
+            this.offset = offset;
+        }
     },
 
     move: function()
     {
-        //TODO: name this function move? just want to update translation if anchor has changed
-        this.element.attr("transform", "translate(" + [this.anchor.x + this.offset.x, this.anchor.y + this.offset.y] + ")");
+        //TODO: name this function move? just want to update translation if cleat has changed
+        this.element.attr("transform", "translate(" + [this.cleat.x + this.offset.x, this.cleat.y + this.offset.y] + ")");
     },
 
 
@@ -250,7 +283,7 @@ dipsy.Pop.prototype = {
             if(!that.stuck)
             {
                 var m = d3.svg.mouse(that.pelement);
-                that.setAnchor({"x":m[0], "y":m[1]});
+                that.setCleat({"x":m[0], "y":m[1]});
                 that.move();
             }
         }

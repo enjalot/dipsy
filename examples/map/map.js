@@ -65,6 +65,8 @@ d3.json("../data/enj_states_array.json", function(json) {
                     }
                     var tt = tooltips.add(this, make_tt);
                     tt.setFollowMouse(true);
+
+
                 }
                 else
                 {
