@@ -1,6 +1,8 @@
 Popup/Tooltip/Label library for d3.js
-author: Ian 'enjalot' Johnson - http://enja.org http://visual.ly
-released under the zlib license
+author: Ian 'enjalot' Johnson
+copyright 2011 - all rights reserved
+http://enja.org 
+http://visual.ly
 
 
 See examples for usage. d3 style data-driven tooltips
