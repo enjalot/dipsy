@@ -50,7 +50,7 @@ dipsy.Pops.prototype =
             {
                 ret.push(p);
             }
-        }
+        });
         return ret;
     }
 }
