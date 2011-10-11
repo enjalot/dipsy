@@ -18,8 +18,6 @@ body {
  </head>
  <body>
 
-     <p style="font-size:24pt;">Click on a pie</p>
-
      <div id="chart"></div>
 
     <script type="text/javascript">
@@ -51,10 +49,11 @@ body {
     var labels = new dipsy.Pops(svg)
     labels.follow_mouse = true;
 
+    //TODO make force part of dipsy
     //force layout
     var force = d3.layout.force()
         .gravity(0)
-        .charge(-5)
+        .charge(-10)
         .size([w, h]);
 
     var nodes = force.nodes();
@@ -95,20 +94,52 @@ body {
                 label.setStuck(true);
                 label.setOffset("center");
                 label.show();
+                var lt = label.getTheme();
+                lt.bg_fill = color(i);
+                lt.bg_fill_opacity = .6;
+                lt.stroke = "#555";
+                lt.stroke_opacity = .9;
+                lt.stroke_width = 2;
+                label.update();
+
+                //force layout
                 nodes.push(label.getCleat());
+                //save the id so we can access this tooltip later
+                d.label_id = label.id;
+                return label.id;
             })
             .on("mouseover", function(d, i) 
             {
                 d3.select(this)
-                    .attr("fill-opacity", 1);
+                    .attr("fill-opacity", 1)
+                    .attr("tooltip", function(d,i)
+                    {
+                        //console.log(d);
+                        var label = labels.pops[d.label_id];
+                        var lt = label.getTheme();
+                        lt.bg_fill_opacity = 1;
+                        lt.stroke_opacity = .3;
+                        label.update();
+                    });
             })
             .on("mouseout", function(d, i) 
             {
                 d3.select(this)
-                    .attr("fill-opacity", .6);
+                    .attr("fill-opacity", .6)
+                    .attr("tooltip", function(d,i)
+                    {
+                        //console.log(d);
+                        var label = labels.pops[d.label_id];
+                        var lt = label.getTheme();
+                        lt.bg_fill_opacity = .6;
+                        lt.stroke_opacity = .9;
+                        label.update();
+                    });
+
             });
         
 
+            console.log("GO");
             //force layout
             force.on("tick", function(e) 
             {

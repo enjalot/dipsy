@@ -1,15 +1,9 @@
 //dipsy, pure svg popups and tooltips for d3
 //version 0.0.1
 //author: Ian 'enjalot' Johnson, http://visual.ly
-//released under zlib license
+//copyright 2011 all rights reserved
 
 dipsy = {version : "0.0.1"};
-
-function maybeCall(thing, ctx)
-{
-    //from jquery tipsy plugin http://onehackoranother.com/projects/jquery/tipsy/
-    return (typeof thing == 'function') ? (thing.call(ctx)) : thing;
-}
 
 dipsy.Pops = function(root)
 {
@@ -23,7 +17,6 @@ dipsy.Pops = function(root)
     //TODO: deal with multiple tooltips for one parent element
 
 }
-
 
 dipsy.Pops.prototype = 
 {
@@ -66,6 +59,7 @@ dipsy.Pop = function(root, id, pelement, content)
     this.content = content;
     this.cleat = null;
     this.offset = null;
+    this.theme = new dipsy.Theme();
     //not sure if its a good idea to store this for every one (vs accessing)
     this.nve = pelement.nearestViewportElement;
 
@@ -91,7 +85,8 @@ dipsy.Pop.prototype = {
         this.element = this.root.append("svg:g")
             .attr("class", "dipsy_pop")
 
-        var bgrect = this.element.append("svg:rect");
+        var bgrect = this.element.append("svg:rect")
+            .attr("class", "dipsy_bgrect");
 
         if(typeof(this.content) == "function")
         {
@@ -119,13 +114,32 @@ dipsy.Pop.prototype = {
         bgrect
             .attr("width", w)
             .attr("height", h)
-            .attr("stroke", "#aaa")
-            .attr("fill", "#fff")
-            .attr("fill-opacity", .5);
-
+    
         this.setOffset();
+        this.update();
         
      },
+
+    update: function()
+    {
+        //update the appearance of our tooltip using the theme
+        var bgrect = this.element.select(".dipsy_bgrect")
+            .attr("stroke", this.theme.stroke)
+            .attr("stroke-opacity", this.theme.stroke_opacity)
+            .attr("stroke-width", this.theme.stroke_width)
+            .attr("fill", this.theme.bg_fill)
+            .attr("fill-opacity", this.theme.bg_fill_opacity);
+    },
+
+    setTheme: function(theme)
+    {
+        this.theme = theme;
+    },
+
+    getTheme: function()
+    {
+        return this.theme;
+    },
 
     show: function()
     {
@@ -182,7 +196,7 @@ dipsy.Pop.prototype = {
             switch(offset)
             {
                 case "center":
-                    this.offset = {"x": w/2, "y":h/2};
+                    this.offset = {"x": -w/2, "y":-h/2};
                 case "S":
                     this.offset = { "x":  -w/2, "y":  -h -10};
                 default:
@@ -317,4 +331,20 @@ dipsy.Pop.prototype = {
 
     }
 
+}
+
+
+
+dipsy.Theme = function()
+{
+    this.bg_fill="#fff";
+    this.bg_fill_opacity=.6;
+    this.stroke="#fff";
+    this.stroke_opacity=.8;
+    this.stroke_width=1;
+}
+
+dipsy.Theme.prototype = 
+{
+ 
 }
