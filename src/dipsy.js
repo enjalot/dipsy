@@ -57,8 +57,8 @@ dipsy.Pop = function(root, id, pelement, content)
     var pbbox = pelement.getBBox();
     this.parent_bbox = pbbox;
     this.content = content;
-    this.cleat = null;
-    this.offset = null;
+    this.cleat = {"x":0, "y":0};
+    this.offset = {"x":0, "y":0};
     this.theme = new dipsy.Theme();
     //not sure if its a good idea to store this for every one (vs accessing)
     this.nve = pelement.nearestViewportElement;
@@ -193,14 +193,18 @@ dipsy.Pop.prototype = {
             var w = cbbox.width + 10;
             var h = cbbox.height + 5;
 
+            console.log(offset);
             switch(offset)
             {
                 case "center":
                     this.offset = {"x": -w/2, "y":-h/2};
+                    break;
                 case "S":
                     this.offset = { "x":  -w/2, "y":  -h -10};
+                    break;
                 default:
                     this.offset = {"x": 0, "y": 0};
+                    break;
             }
         }
         else if(typeof(offset) == "undefined")
@@ -211,6 +215,7 @@ dipsy.Pop.prototype = {
         {
             this.offset = offset;
         }
+        this.move();
     },
 
     move: function()

@@ -78,7 +78,18 @@ body {
                 var content_format = d3.format(".2r");
                 var content = content_format(d.value);
                 var label = labels.add(this, content);
-                label.setAnchor(lp);
+                label.setCleat(lp);
+                label.setOffset("center");
+                console.log(label.offset);
+                //theme our tooltip
+                var lt = label.getTheme();
+                lt.bg_fill = color(i);
+                lt.bg_fill_opacity = .6;
+                lt.stroke = "#555";
+                lt.stroke_opacity = .9;
+                lt.stroke_width = 2;
+                label.update();
+
                 //label.setStuck(true);
                 //label.show();
             })
