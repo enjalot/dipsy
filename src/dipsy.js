@@ -5,12 +5,13 @@
 
 dipsy = {version : "0.0.1"};
 
-dipsy.Pops = function(root)
+dipsy.Pops = function(root, clss)
 {
     //root svg element to append our popups to
     //this will typically be the the <svg> element itself
     //or a group with proper transformations
     this.root = root;
+    this.class = clss;
 
     //keep track of our popups
     this.pops = [];
@@ -26,7 +27,8 @@ dipsy.Pops.prototype =
         var newpop = new dipsy.Pop(  this.root,
                         this.pops.length, 
                         element,
-                        content
+                        content,
+                        this.class
                         );
 
         //console.log(newpop);
@@ -45,14 +47,63 @@ dipsy.Pops.prototype =
             }
         });
         return ret;
+    },
+
+    getAll: function()
+    {
+        return this.pops;
+    },
+
+    buildQuadTree: function()
+    {
+        console.log("build qt")
+        console.log(this.pops)
+        this.qt = d3.geom.quadtree(this.pops);
+        console.log(this.qt);
+    },
+
+    getNeighbors: function(pop)
+    {
+        //TODO: build quadtree if not already built
+
+        //get the neighboring pops of the given pop
+        var nn = []; 
+        var x0 = pop.x;
+        var y0 = pop.y;
+        var x3 = pop.x + pop.w;
+        var y3 = pop.y + pop.h;
+        this.qt.visit(function(node, x1, y1, x2, y2) 
+        {   
+            p = node.point;
+            if (p && (p.x >= x0) && (p.x < x3) && (p.y >= y0) && (p.y < y3) && p != pop) nn.push(p);
+            return x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0; 
+        }); 
+        return nn;
+    },
+
+    getColliders: function(pop)
+    {
+        var colliders = [];
+        var nn = this.getNeighbors(pop);
+        //TODO: actual collision detection
+        nn.forEach(function(n)
+        {
+            if(false)
+            { 
+                colliders.push(n);
+            }
+        })
     }
+
+
 }
 
-dipsy.Pop = function(root, id, pelement, content)
+dipsy.Pop = function(root, id, pelement, content, clss)
 {
     //default values
     this.root = root;
     this.id = id;
+    this.class = clss;
     this.pelement = pelement;
     var pbbox = pelement.getBBox();
     this.parent_bbox = pbbox;
@@ -63,6 +114,7 @@ dipsy.Pop = function(root, id, pelement, content)
     //not sure if its a good idea to store this for every one (vs accessing)
     this.nve = pelement.nearestViewportElement;
 
+    this.handle_mouse = true;
     this.follow_mouse = false;
     this.stuck = false;
 
@@ -81,9 +133,22 @@ dipsy.Pop.prototype = {
     init: function()
     {
         //initialize the tooltip
+        this.render();
+        this.setOffset();
+        this.update();
+ 
+    },
+
+    render: function()
+    {
         //generate the svg for the background and 
+        if(!_.isUndefined(this.element))
+        {
+            this.element.remove()
+        }
+
         this.element = this.root.append("svg:g")
-            .attr("class", "dipsy_pop")
+            .attr("class", "dipsy_pop " + this.class)
 
         var bgrect = this.element.append("svg:rect")
             .attr("class", "dipsy_bgrect");
@@ -108,16 +173,29 @@ dipsy.Pop.prototype = {
         }
 
         var cbbox = this.element.node().getBBox();
-        var w = cbbox.width + 10;
-        var h = cbbox.height + 5;
+        if( _.isUndefined(this.w))
+        {
+            var w = cbbox.width + 10;
+            this.w = w;
+        }
+        else
+        {
+            var w = this.w;
+        }
+        if( _.isUndefined(this.h))
+        {
+            var h = cbbox.height;
+            this.h = h;
+        }
+        else
+        {
+            var h = this.h;
+        }
 
         bgrect
             .attr("width", w)
             .attr("height", h)
     
-        this.setOffset();
-        this.update();
-        
      },
 
     update: function()
@@ -148,10 +226,10 @@ dipsy.Pop.prototype = {
 
     hide: function()
     {
-        if(!this.stuck)
-        {
+        //if(!this.stuck)
+        //{
             this.element.attr("visibility", "hidden");
-        }
+        //}
     },
 
     remove: function()
@@ -190,18 +268,28 @@ dipsy.Pop.prototype = {
         if(typeof(offset) == "string")
         {
             var cbbox = this.element.node().getBBox();
-            var w = cbbox.width + 10;
-            var h = cbbox.height + 5;
+            var w = cbbox.width;
+            var h = cbbox.height;
 
-            console.log(offset);
+            //console.log(offset);
             switch(offset)
             {
                 case "center":
                     this.offset = {"x": -w/2, "y":-h/2};
                     break;
+                case "N":
+                    this.offset = { "x":  -w/2, "y":  +10};
+                    break;
                 case "S":
                     this.offset = { "x":  -w/2, "y":  -h -10};
                     break;
+                case "E":
+                    this.offset = { "x":  +10, "y":  -h/2};
+                    break;
+                case "W":
+                    this.offset = { "x":  -w+10, "y": -h/2};
+                    break;
+
                 default:
                     this.offset = {"x": 0, "y": 0};
                     break;
@@ -220,8 +308,11 @@ dipsy.Pop.prototype = {
 
     move: function()
     {
+        this.x = this.cleat.x + this.offset.x;
+        this.y = this.cleat.y + this.offset.y;
         //TODO: name this function move? just want to update translation if cleat has changed
-        this.element.attr("transform", "translate(" + [this.cleat.x + this.offset.x, this.cleat.y + this.offset.y] + ")");
+        //this.element.attr("transform", "translate(" + [this.cleat.x + this.offset.x, this.cleat.y + this.offset.y] + ")");
+        this.element.attr("transform", "translate(" + [this.x, this.y] + ")");
     },
 
 
@@ -235,6 +326,13 @@ dipsy.Pop.prototype = {
         this.follow_mouse = follow_mouse;
         this.setMouseHandlers();
     },
+
+    setHandleMouse: function(handle_mouse)
+    {
+        this.handle_mouse = handle_mouse;
+        this.setMouseHandlers();
+    },
+
 
     setMouseHandlers: function()
     {
@@ -256,7 +354,10 @@ dipsy.Pop.prototype = {
                     return false;
                 }
             }
-            that.hide.apply(that, arguments);
+            if(!that.stuck)
+            {
+                that.hide.apply(that, arguments);
+            }
         }
         var this_out = function()
         {
@@ -282,9 +383,16 @@ dipsy.Pop.prototype = {
                 //console.log("exiting to other state");
                 //TODO this seems really hacky
                 //we are making sure we call the mouseout of the parent element
-                d3.select(that.pelement)[0][0].__onmouseout(d3.event);
+                var pel = d3.select(that.pelement)[0][0];
+                if(pel.__onmouseout)
+                {
+                    pel.__onmouseout(d3.event);
+                }
             }
-            that.hide.apply(that, arguments);
+            if(!that.stuck)
+            {
+                that.hide.apply(that, arguments);
+            }
         }
 
         var this_over = function()
@@ -311,29 +419,42 @@ dipsy.Pop.prototype = {
             that.stuck = !that.stuck;
         }
 
-
-        //mouse events on parent element
-        var papa = d3.select(this.pelement)
-            .on("mouseover.dipsy", parent_over)
-            .on("mouseout.dipsy", parent_out)
-            .on("click.dipsy", parent_click)
-
-        //mouse events on the tooltip itself
-        this.element.on("mouseout.dipsy", this_out);
-        this.element.on("mouseover.dipsy", this_over);
-
-        //if we want to follow the mouse
-        if(this.follow_mouse)
+        if(this.handle_mouse)
         {
-            this.element.on("mousemove.dipsy", parent_move);
-            papa.on("mousemove.dipsy", parent_move);
+            //mouse events on parent element
+            var papa = d3.select(this.pelement)
+                .on("mouseover.dipsy"+this.class, parent_over)
+                .on("mouseout.dipsy"+this.class, parent_out)
+                .on("click.dipsy"+this.class, parent_click)
+
+            //mouse events on the tooltip itself
+            this.element.on("mouseout.dipsy"+this.class, this_out);
+            this.element.on("mouseover.dipsy"+this.class, this_over);
+
+            //if we want to follow the mouse
+            if(this.follow_mouse)
+            {
+                this.element.on("mousemove.dipsy"+this.class, parent_move);
+                papa.on("mousemove.dipsy"+this.class, parent_move);
+            }
+            else
+            {
+                this.element.on("mousemove.dipsy"+this.class, null);
+                papa.on("mousemove.dipsy"+this.class, null);
+            }
         }
         else
         {
-            this.element.on("mousemove.dipsy", null);
-            papa.on("mousemove.dipsy", null);
-        }
+            //mouse events on parent element
+            var papa = d3.select(this.pelement)
+                .on("mouseover.dipsy"+this.class, null)
+                .on("mouseout.dipsy"+this.class, null)
+                .on("click.dipsy"+this.class, null)
 
+            //mouse events on the tooltip itself
+            this.element.on("mouseout.dipsy"+this.class, null);
+            this.element.on("mouseover.dipsy"+this.class, null);
+        }
     }
 
 }
