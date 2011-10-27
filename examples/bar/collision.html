@@ -3,6 +3,7 @@
    <title>Bar Chart</title>
     <script type="text/javascript" src="../../lib/d3/d3.js"></script> 
     <script type="text/javascript" src="../../lib/d3/d3.layout.js"></script> 
+    <script type="text/javascript" src="../../lib/d3/d3.geom.js"></script> 
     <script type="text/javascript" src="../../lib/underscore-min.js"></script>
 
     <script type="text/javascript" src="../../src/dipsy.js"></script>
@@ -46,7 +47,7 @@ body {
     //var labels = new dipsy.Pops(svg)
     //labels.follow_mouse = true;
 
-    var tooltips = new dipsy.Pops(svg)
+    var tooltips = new dipsy.Pops(svg, "tooltips")
     //tooltips.follow_mouse = true;
 
 
@@ -140,10 +141,11 @@ body {
                 tt.render();
                 //tt.setCleat({"x": x(i) + x.rangeBand()/2, "y": h - y(d.pop)});
                 tt.setCleat({"x": x(i) + x.rangeBand()/2, "y": h});
+                tt.anchor = tt.getCleat();//force anchor
                 tt.setOffset("N");
                 tt.update();
 
-                tt.setStuck(false);
+                //tt.setStuck(false);
                 tt.hide();
                 //tt.show();
                 //tt.setFollowMouse(true);
@@ -162,6 +164,30 @@ body {
                     .attr("fill-opacity", .6);
             });
 
+            //Collision detection
+
+            tooltips.buildQuadTree()
+            counts = []
+            count = 0 
+            /*
+            tooltips.pops.forEach(function(pop)
+            {
+                nn = tooltips.getNeighbors(pop).length
+                counts.push(nn)
+                if(nn > 0 )
+                    count++
+            });
+            console.log(counts);
+            console.log(count);
+            */
+
+            console.log("NY")
+            pop = tooltips.pops[2];
+            console.log(pop)
+            nn = tooltips.getNeighbors(pop)
+            console.log(nn)
+
+            tooltips.initForce(w, h, 0, -50);
 
     }
 
@@ -189,12 +215,13 @@ body {
        
     bakebar("bar1", data, 100, 50, 800, 500);
 
-    /*
-    data = d3.range(20).map(Math.random)
-    bakepie("pie2", data, 200, 200, 150);
-    data = d3.range(30).map(Math.random)
-    bakepie("pie3", data, 300, 300, 200);
-    */
+
+    tooltips.startForce();
+    svg.on("click", function()
+    {
+        tooltips.stopForce();
+    });
+
 
   
    </script>

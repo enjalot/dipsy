@@ -1,9 +1,9 @@
-<!DOCTYPE html>
-<html>
+<!DOCTYPE html> <html>
  <head>
    <title>Bar Chart</title>
     <script type="text/javascript" src="../../lib/d3/d3.js"></script> 
     <script type="text/javascript" src="../../lib/d3/d3.layout.js"></script> 
+    <script type="text/javascript" src="../../lib/d3/d3.geom.js"></script> 
     <script type="text/javascript" src="../../lib/underscore-min.js"></script>
 
     <script type="text/javascript" src="../../src/dipsy.js"></script>
@@ -125,7 +125,7 @@ body {
                 //add the tooltip
                 var tt = tooltips.add(this, make_tt);
                 //change the width and height of the tooltip
-                tt.w = x.rangeBand();
+                tt.w = x.rangeBand() + 40;
                 tt.h = 90;
 
                 //Theme the box itself
@@ -139,9 +139,9 @@ body {
 
                 //TODO: These three need to be done in order right now (will fix)
                 tt.render();
-                tt.setCleat({"x": x(i) + x.rangeBand()/2, "y": h - y(d.pop)});
-                //tt.setCleat({"x": x(i) + x.rangeBand()/2, "y": h});
-                tt.setOffset("S");
+                //tt.setCleat({"x": x(i) + x.rangeBand()/2, "y": h - y(d.pop)});
+                tt.setCleat({"x": x(i) + x.rangeBand()/2, "y": h});
+                tt.setOffset("N");
                 tt.update();
 
                 tt.setStuck(false);
@@ -162,6 +162,29 @@ body {
                 d3.select(this)
                     .attr("fill-opacity", .6);
             });
+
+            //Collision detection
+
+            tooltips.buildQuadTree()
+            counts = []
+            count = 0 
+            /*
+            tooltips.pops.forEach(function(pop)
+            {
+                nn = tooltips.getNeighbors(pop).length
+                counts.push(nn)
+                if(nn > 0 )
+                    count++
+            });
+            console.log(counts);
+            console.log(count);
+            */
+
+            console.log("NY")
+            pop = tooltips.pops[2];
+            console.log(pop)
+            nn = tooltips.getNeighbors(pop)
+            console.log(nn)
 
 
     }
@@ -188,7 +211,7 @@ body {
         {"key":"TX", "awesome":7}
     ]
        
-    bakebar("bar1", data, 100, 100, 800, 500);
+    bakebar("bar1", data, 100, 50, 800, 500);
 
     /*
     data = d3.range(20).map(Math.random)

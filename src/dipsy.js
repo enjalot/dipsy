@@ -67,9 +67,10 @@ dipsy.Pops.prototype =
         //TODO: build quadtree if not already built
 
         //get the neighboring pops of the given pop
+        //This does assume equal size (we could miss a bigger tooltip if it is in upper left)
         var nn = []; 
-        var x0 = pop.x;
-        var y0 = pop.y;
+        var x0 = pop.x - pop.w;
+        var y0 = pop.y - pop.h;
         var x3 = pop.x + pop.w;
         var y3 = pop.y + pop.h;
         this.qt.visit(function(node, x1, y1, x2, y2) 
@@ -85,6 +86,8 @@ dipsy.Pops.prototype =
     {
         var colliders = [];
         var nn = this.getNeighbors(pop);
+        pop.neighbors = nn;
+
         //TODO: actual collision detection
         nn.forEach(function(n)
         {
@@ -93,6 +96,67 @@ dipsy.Pops.prototype =
                 colliders.push(n);
             }
         })
+    },
+
+    initForce: function(w, h, gravity, charge)
+    {
+        this.force = d3.layout.force()
+            .gravity(gravity)
+            .charge(charge)
+            .size([w, h]);
+
+        this.nodes = this.force.nodes();
+
+        var that = this;
+        this.pops.forEach(function(pop)
+        {
+            that.nodes.push(pop.getCleat());
+        })
+
+        this.force.on("tick", function(e) 
+        {
+            var k = e.alpha * .1;
+            that.nodes.forEach(function(node, i) 
+            {
+                var pop = that.pops[i];
+                that.getColliders(pop);
+                //TODO use collision check
+                if(pop.neighbors.length == 0 || pop.hidden)
+                {
+                    //no colliders, so don't do force
+                    pop.fixed = true;
+                }
+                else
+                {
+                    pop.fixed = false;
+                    var anchor = that.pops[i].anchor;
+                    node.x += (anchor.x - node.x) * k;
+                    //node.y += (anchor.y - node.y) * k;
+                    that.pops[i].setCleat(node, false);
+                    //that.pops[i].setCleat(node, true);
+
+                }
+            });
+
+        });
+
+
+    },
+
+    startForce: function()
+    {
+        this.force.alpha = .1
+        this.force.start();
+    },
+
+    stopForce: function()
+    {
+        this.force.stop();
+    },
+
+    toggleForce: function()
+    {
+
     }
 
 
@@ -114,9 +178,16 @@ dipsy.Pop = function(root, id, pelement, content, clss)
     //not sure if its a good idea to store this for every one (vs accessing)
     this.nve = pelement.nearestViewportElement;
 
+    //handle mouse events?
     this.handle_mouse = true;
+    //does the tooltip follow the mouse on hover
     this.follow_mouse = false;
+    //stuck determines visibility on mouse hover
     this.stuck = false;
+
+    //move according to force
+    this.force_move = false;
+    this.mouse_move = false;
 
     var cleat = { "x": pbbox.x + pbbox.width/2,
                    "y": pbbox.y + pbbox.height/2}
@@ -222,14 +293,13 @@ dipsy.Pop.prototype = {
     show: function()
     {
         this.element.attr("visibility", "visible");
+        this.hidden = false;
     },
 
     hide: function()
     {
-        //if(!this.stuck)
-        //{
-            this.element.attr("visibility", "hidden");
-        //}
+        this.element.attr("visibility", "hidden");
+        this.hidden = true;
     },
 
     remove: function()
