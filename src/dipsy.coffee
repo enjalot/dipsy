@@ -216,6 +216,7 @@ $(document).ready ->
     class dipsy.Pops extends Backbone.Collection
         model: dipsy.Pop
         url: "/"
+        force_status: false
 
         initialize: ->
             @bind("add", @addView)
@@ -234,6 +235,8 @@ $(document).ready ->
             @each((pop) ->
                 view = pop.get("view")
                 view.render()
+
+                #TODO: bind visibility change events
             )
 
         initForce: (w,h) =>
@@ -255,7 +258,9 @@ $(document).ready ->
 
             @force.on("tick", (e) =>
                 #console.log(e.alpha, e.stopping)
+                @force_status = true
                 if e.stopping
+                    @force_status = false
                     @trigger("force:stopped")
                     return true
 
@@ -275,16 +280,42 @@ $(document).ready ->
 
             )
 
-
-
-
-
         startForce: =>
             @force.start()
 
         stopForce: =>
             @force.stop()
 
+        buildQuadTree: () =>
+            console.log("build qt")
+            @qt = d3.geom.quadtree(@nodes)
+            console.log(@qt)
+
+        getNeighbors: (pop) =>
+            #TODO: build quadtree if not already built
+
+            #get the neighboring pops of the given pop
+            nn = []
+            x0 = pop.x
+            y0 = pop.y
+            x3 = pop.x + pop.w
+            y3 = pop.y + pop.h
+            @qt.visit((node, x1, y1, x2, y2) =>
+                p = node.point
+                if (p && (p.x >= x0) && (p.x < x3) && (p.y >= y0) && (p.y < y3) && p != pop) then nn.push(p)
+                x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0
+            )
+            nn
+
+        getColliders: (pop) =>
+            colliders = []
+            nn = this.getNeighbors(pop)
+            #TODO: actual collision detection
+            nn.forEach((n) =>
+                if(false)
+                    colliders.push(n)
+            )
+            colliders
         
 
 

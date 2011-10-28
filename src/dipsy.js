@@ -262,6 +262,9 @@ $(document).ready(function() {
   dipsy.Pops = (function() {
     __extends(Pops, Backbone.Collection);
     function Pops() {
+      this.getColliders = __bind(this.getColliders, this);
+      this.getNeighbors = __bind(this.getNeighbors, this);
+      this.buildQuadTree = __bind(this.buildQuadTree, this);
       this.stopForce = __bind(this.stopForce, this);
       this.startForce = __bind(this.startForce, this);
       this.initForce = __bind(this.initForce, this);
@@ -272,6 +275,7 @@ $(document).ready(function() {
     }
     Pops.prototype.model = dipsy.Pop;
     Pops.prototype.url = "/";
+    Pops.prototype.force_status = false;
     Pops.prototype.initialize = function() {
       return this.bind("add", this.addView);
     };
@@ -306,7 +310,9 @@ $(document).ready(function() {
       }, this));
       return this.force.on("tick", __bind(function(e) {
         var k;
+        this.force_status = true;
         if (e.stopping) {
+          this.force_status = false;
           this.trigger("force:stopped");
           return true;
         }
@@ -326,6 +332,39 @@ $(document).ready(function() {
     };
     Pops.prototype.stopForce = function() {
       return this.force.stop();
+    };
+    Pops.prototype.buildQuadTree = function() {
+      console.log("build qt");
+      this.qt = d3.geom.quadtree(this.nodes);
+      return console.log(this.qt);
+    };
+    Pops.prototype.getNeighbors = function(pop) {
+      var nn, x0, x3, y0, y3;
+      nn = [];
+      x0 = pop.x;
+      y0 = pop.y;
+      x3 = pop.x + pop.w;
+      y3 = pop.y + pop.h;
+      this.qt.visit(__bind(function(node, x1, y1, x2, y2) {
+        var p;
+        p = node.point;
+        if (p && (p.x >= x0) && (p.x < x3) && (p.y >= y0) && (p.y < y3) && p !== pop) {
+          nn.push(p);
+        }
+        return x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0;
+      }, this));
+      return nn;
+    };
+    Pops.prototype.getColliders = function(pop) {
+      var colliders, nn;
+      colliders = [];
+      nn = this.getNeighbors(pop);
+      nn.forEach(__bind(function(n) {
+        if (false) {
+          return colliders.push(n);
+        }
+      }, this));
+      return colliders;
     };
     return Pops;
   })();
