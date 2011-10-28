@@ -17,6 +17,7 @@ d3.json("../data/enj_states_array.json", function(json) {
 
     svg.append("svg:g")
         .attr("class", "states")
+        .attr("id", "states")
     .selectAll("g.state")
     .data(json).enter()
         .append("svg:g")
@@ -28,6 +29,11 @@ d3.json("../data/enj_states_array.json", function(json) {
             {
                 return d.id;
             })
+            .attr("id", function(d, i)
+            {
+                return d.id;
+            })
+
             .attr("d", function( d, i) 
             {
                 return path(d.geom);

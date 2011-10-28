@@ -4,6 +4,7 @@
    <title>Bar Chart</title>
     <script type="text/javascript" src="../../lib/d3/d3.js"></script> 
     <script type="text/javascript" src="../../lib/d3/d3.layout.js"></script> 
+
     <script type="text/javascript" src="../../lib/jquery.min.js"></script>
     <script type="text/javascript" src="../../lib/underscore-min.js"></script>
     <script type="text/javascript" src="../../lib/backbone.js"></script>
@@ -93,7 +94,7 @@ $(document).ready(function() {
             .attr("y", function(d,i) { return h - y(d.pop) })
             .attr("width", function(d,i) { return x.rangeBand() })
             .attr("height", function(d,i) { return y(d.pop) })
-            .attr("class", function(d,i) {
+            .attr("id", function(d,i) {
                 return d.key; 
             })
             .attr("tooltip", function(d,i)
@@ -142,7 +143,7 @@ $(document).ready(function() {
 
                 var tt = tooltips.add({
                         className: "tooltip", 
-                        root: svg.attr("class"), 
+                        root: svg.attr("id"), 
                         pelement: d.key, 
                         //content: "ASDF", 
                         content: make_tt, 

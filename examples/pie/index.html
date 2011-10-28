@@ -78,7 +78,7 @@ $(document).ready(function() {
             .attr("fill", function(d, i) { return color(i); })
             .attr("fill-opacity", .6)
             .attr("d", arc)
-            .attr("class", function(d,i) { return classname+"_"+i})
+            .attr("id", function(d,i) { return classname+"_"+i})
             .attr("tooltip", function(d,i)
             {
                     var size = {w: 30, h: 30};

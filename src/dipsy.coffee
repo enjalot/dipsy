@@ -156,13 +156,13 @@ $(document).ready ->
                 )
 
         getElement: () =>
-            d3.select("." + @get("element"))
+            d3.select("#" + @get("element"))
 
         getPelement: () =>
-            d3.select("." + @get("pelement"))
+            d3.select("#" + @get("pelement"))
 
         getRoot: () =>
-            d3.select("." + @get("root"))
+            d3.select("#" + @get("root"))
 
         hide: () =>
             @set(visible: false)
@@ -257,7 +257,7 @@ $(document).ready ->
                 root = @model.getRoot()
                 elid = "dipsy_pop_" + @model.get("className") + "_" + @model.cid
                 element = root.append("svg:g")
-                    .attr("class", elid)
+                    .attr("id", elid)
 
                 bgrect = element.append("svg:rect")
                     .attr("class", "dipsy_bgrect")
@@ -276,6 +276,7 @@ $(document).ready ->
         setMouseHandlers: () =>
             #TODO: should make dipsy event/mouse handlers. Need to be able to
             #intercept events before they trigger parent element mouse handlers
+            #maybe use jQuery events
             parent_out = () =>
                 #check if we are mousing out of our parent and into ourselves
                 ee = d3.event.toElement
@@ -302,12 +303,14 @@ $(document).ready ->
                 #eles = that.element[0][0].childNodes
                 pelement = @model.getPelement().node()
                 eles = @model.getElement().node().childNodes
+                #console.log(eles)
                 #console.log(pelement)
                 #console.log(ee)
                 #console.log(eles)
+                #TODO: figure out why mousing into children elements cancels
                 for e in eles
                     if ee == e #eles[i]
-                        false
+                        return false
 
                 #if we are mousing out of the popup into the parent element
                 if (ee == pelement)

@@ -187,13 +187,13 @@ $(document).ready(function() {
       }
     };
     Pop.prototype.getElement = function() {
-      return d3.select("." + this.get("element"));
+      return d3.select("#" + this.get("element"));
     };
     Pop.prototype.getPelement = function() {
-      return d3.select("." + this.get("pelement"));
+      return d3.select("#" + this.get("pelement"));
     };
     Pop.prototype.getRoot = function() {
-      return d3.select("." + this.get("root"));
+      return d3.select("#" + this.get("root"));
     };
     Pop.prototype.hide = function() {
       return this.set({
@@ -302,7 +302,7 @@ $(document).ready(function() {
       if (_.isUndefined(this.model.get("element"))) {
         root = this.model.getRoot();
         elid = "dipsy_pop_" + this.model.get("className") + "_" + this.model.cid;
-        element = root.append("svg:g").attr("class", elid);
+        element = root.append("svg:g").attr("id", elid);
         bgrect = element.append("svg:rect").attr("class", "dipsy_bgrect");
         this.model.set({
           element: elid
@@ -341,7 +341,7 @@ $(document).ready(function() {
         for (_i = 0, _len = eles.length; _i < _len; _i++) {
           e = eles[_i];
           if (ee === e) {
-            false;
+            return false;
           }
         }
         if (ee === pelement) {
