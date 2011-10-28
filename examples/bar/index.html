@@ -4,7 +4,10 @@
    <title>Bar Chart</title>
     <script type="text/javascript" src="../../lib/d3/d3.js"></script> 
     <script type="text/javascript" src="../../lib/d3/d3.layout.js"></script> 
+
+    <script type="text/javascript" src="../../lib/jquery.min.js"></script>
     <script type="text/javascript" src="../../lib/underscore-min.js"></script>
+    <script type="text/javascript" src="../../lib/backbone.js"></script>
 
     <script type="text/javascript" src="../../src/dipsy.js"></script>
 
@@ -24,6 +27,7 @@ body {
 
     <script type="text/javascript">
         
+$(document).ready(function() {
     //setup svg canvas
     var svg = d3.select("#chart")
         .append("svg:svg")
@@ -33,8 +37,10 @@ body {
             .attr("height", "550")
             .attr("viewBox", "0 0 1000 700")
             .attr("preserveAspectRatio", "xMinYMin meet")
-            .attr("id", "charts");
+            .attr("id", "charts")
+            .attr("class", "charts");
             //.on("click", clickypie)
+
     var bgrect = svg.append("svg:rect")
         .attr("width", "100%")
         .attr("height", "100%")
@@ -45,127 +51,8 @@ body {
 
 
     //var labels = new dipsy.Pops(svg)
-    //labels.follow_mouse = true;
 
-    var tooltips = new dipsy.Pops(svg, "tooltips")
-    //tooltips.follow_mouse = true;
-
-
-
-
-    function bakebar(classname, data, xp, yp, w, h)
-    { 
-        //color could be made a parameter
-        var color = d3.scale.category10()
-
-        x = d3.scale.ordinal()
-            .domain(d3.range(data.length ))
-            .rangeBands([ 0, w ], .2)
-
-        var data_max = d3.max(data, function(d)
-        {
-            return d.pop
-        })
-        console.log(data_max)
-
-        y = d3.scale.linear()
-            .domain([ 0, data_max ])
-            .range([ 0, h ])
-
-
-        var bar = d3.select("#charts")
-            .append("svg:g")
-                .attr("class", classname);
-
-        var bars = bar.selectAll("g.bar")
-           .data(data)
-         .enter().append("svg:g")
-           .attr("class", "bar")
-           .attr("transform", "translate(" + xp + "," + yp + ")");
-
-
-        console.log("BARS");
-        var paths = bars.append("svg:rect")
-            .attr("fill", function(d, i) { return color(i); })
-            .attr("fill-opacity", .6)
-            .attr("x", function(d,i) { return x(i) })
-            .attr("y", function(d,i) { return h - y(d.pop) })
-            .attr("width", function(d,i) { return x.rangeBand() })
-            .attr("height", function(d,i) { return y(d.pop) })
-            .attr("tooltip", function(d,i)
-            {
-
-                var make_tt = function(ele)
-                {
-                    //console.log(ele);
-                    ele.append("svg:text")
-                        .text(d.key)
-                        .attr("font-size", 20)
-                        .attr("x", 5)
-                        .attr("y", function(d)
-                        {
-                            return this.getBBox().height;
-                        });
-                    ele.append("svg:text")
-                        .text(ttdata[i].awesome)
-                        .attr("font-size", 20)
-                        .attr("x", 5)
-                        .attr("y", function(d)
-                        {
-                            return 2*this.getBBox().height;
-                        });
-
-                    ele.append("svg:rect")
-                        .attr("width", 20)
-                        .attr("height", 20)
-                        .attr("x", 50)
-                        .attr("y", 50)
-                        .attr("fill", color(i))
-                }
-                //add the tooltip
-                var tt = tooltips.add(this, make_tt);
-                //change the width and height of the tooltip
-                tt.w = x.rangeBand();
-                tt.h = 90;
-
-                //Theme the box itself
-                var lt = tt.getTheme();
-                lt.bg_fill = color(i);
-                lt.bg_fill_opacity = .6;
-                lt.stroke = "#555";
-                lt.stroke_opacity = .9;
-                lt.stroke_width = 2;
- 
-
-                //TODO: These three need to be done in order right now (will fix)
-                tt.render();
-                tt.setCleat({"x": x(i) + x.rangeBand()/2, "y": h - y(d.pop)});
-                //tt.setCleat({"x": x(i) + x.rangeBand()/2, "y": h});
-                tt.setOffset("S");
-                tt.update();
-
-                tt.setStuck(false);
-                tt.hide();
-                //tt.show();
-                //tt.setFollowMouse(true);
-
-
-                return i 
-            })
-            .on("mouseover", function(d, i) 
-            {
-                d3.select(this)
-                    .attr("fill-opacity", 1);
-            })
-            .on("mouseout", function(d, i) 
-            {
-                d3.select(this)
-                    .attr("fill-opacity", .6);
-            });
-
-
-    }
-
+    var tooltips = new dipsy.Pops();
 
     var data = [
         {"key":"FL", "pop":10000 },
@@ -188,15 +75,144 @@ body {
         {"key":"TX", "awesome":7}
     ]
        
-    bakebar("bar1", data, 100, 100, 800, 500);
 
-    /*
-    data = d3.range(20).map(Math.random)
-    bakepie("pie2", data, 200, 200, 150);
-    data = d3.range(30).map(Math.random)
-    bakepie("pie3", data, 300, 300, 200);
-    */
+    var xp = 100;
+    var yp = 110;
+    var w = 800;
+    var h = 500;
 
+    classname = "bar1";
+
+    //color could be made a parameter
+    var color = d3.scale.category10()
+
+    x = d3.scale.ordinal()
+        .domain(d3.range(data.length ))
+        .rangeBands([ 0, w ], .2)
+
+    var data_max = d3.max(data, function(d)
+    {
+        return d.pop
+    })
+    console.log(data_max)
+
+    y = d3.scale.linear()
+        .domain([ 0, data_max ])
+        .range([ 0, h ])
+
+
+    var bar = d3.select("#charts")
+        .append("svg:g")
+            .attr("class", classname);
+
+    var bars = bar.selectAll("g.bar")
+       .data(data)
+     .enter().append("svg:g")
+       .attr("class", "bar")
+       .attr("transform", "translate(" + xp + "," + yp + ")");
+
+
+    var paths = bars.append("svg:rect")
+        .attr("fill", function(d, i) { return color(i); })
+        .attr("fill-opacity", .6)
+        .attr("x", function(d,i) { return x(i) })
+        .attr("y", function(d,i) { return h - y(d.pop) })
+        .attr("width", function(d,i) { return x.rangeBand() })
+        .attr("height", function(d,i) { return y(d.pop) })
+        .attr("id", function(d,i) {
+            return d.key; 
+        })
+        .attr("tooltip", function(d,i)
+        {
+
+            var make_tt = function(ele)
+            {
+                //console.log(ele);
+                ele.append("svg:text")
+                    .text(d.key)
+                    .attr("font-size", 20)
+                    .attr("x", 5)
+                    .attr("y", function(d)
+                    {
+                        return this.getBBox().height;
+                    });
+                ele.append("svg:text")
+                    .text(ttdata[i].awesome)
+                    .attr("font-size", 20)
+                    .attr("x", 5)
+                    .attr("y", function(d)
+                    {
+                        return 2*this.getBBox().height;
+                    });
+
+                ele.append("svg:rect")
+                    .attr("width", 20)
+                    .attr("height", 20)
+                    .attr("x", 50)
+                    .attr("y", 50)
+                    .attr("fill", color(i))
+            }
+
+            //add the tooltip
+            var size = {w: x.rangeBand(), h: 90};
+            var anchor = {"x": x(i) + x.rangeBand()/2, "y": h - y(d.pop)};
+            var offset = "S";
+
+            var theme = new dipsy.Theme({
+                bg_fill: color(i),
+                bg_fill_opacity: .6,
+                stroke: "#555",
+                stroke_opacity: .9,
+                stroke_width: 2
+                })
+
+            var tt = tooltips.add({
+                    className: "tooltip", 
+                    root: svg.attr("id"), 
+                    pelement: d.key, 
+                    //content: "ASDF", 
+                    content: make_tt, 
+                    anchor: anchor, 
+                    offset: offset,
+                    size:size,
+                    theme: theme
+                })
+            /*
+            //console.log(tt)
+            //tt.setOffset("S");
+            tt.setStuck(false);
+            tt.hide();
+            //tt.show();
+            //tt.setFollowMouse(true);
+            */
+
+
+            return i 
+        })
+    //renders all the tooltips
+    tooltips.render();
+
+    //NOTE: mouse events on elements that have tooltips need to be added after the tooltips have been rendered
+    paths 
+        .on("mouseover", function(d, i) 
+        {
+            d3.select(this)
+                .attr("fill-opacity", 1);
+        })
+        .on("mouseout", function(d, i) 
+        {
+            d3.select(this)
+                .attr("fill-opacity", .6);
+        });
+
+
+    tooltips.select("CA").setPosted(true);
+    tooltips.select("CA").show();
+
+
+
+
+});
   
    </script>
  </body>

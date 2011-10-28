@@ -1,546 +1,524 @@
-//dipsy, pure svg popups and tooltips for d3
-//version 0.0.1
-//author: Ian 'enjalot' Johnson, http://visual.ly
-//copyright 2011 all rights reserved
-
-dipsy = {version : "0.0.1"};
-
-dipsy.Pops = function(root, clss)
-{
-    //root svg element to append our popups to
-    //this will typically be the the <svg> element itself
-    //or a group with proper transformations
-    this.root = root;
-    this.class = clss;
-
-    //keep track of our popups
-    this.pops = [];
-    //TODO: deal with multiple tooltips for one parent element
-
-}
-
-dipsy.Pops.prototype = 
-{
-    //TODO make backbone classes with nice options
-    add: function(element, content, cleat, follow_mouse)
-    {
-        var newpop = new dipsy.Pop(  this.root,
-                        this.pops.length, 
-                        element,
-                        content,
-                        this.class
-                        );
-
-        //console.log(newpop);
-        this.pops.push( newpop );
-        return newpop;
-    },
-
-    get: function(pelement)
-    {
-        var ret = [];
-        this.pops.forEach(function(p)
-        {
-            if (p.pelement == pelement)
-            {
-                ret.push(p);
-            }
+var dipsy;
+var __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
+  for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
+  function ctor() { this.constructor = child; }
+  ctor.prototype = parent.prototype;
+  child.prototype = new ctor;
+  child.__super__ = parent.prototype;
+  return child;
+}, __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+dipsy = {};
+$(document).ready(function() {
+  dipsy.Theme = (function() {
+    __extends(Theme, Backbone.Model);
+    function Theme() {
+      Theme.__super__.constructor.apply(this, arguments);
+    }
+    Theme.prototype.defaults = {
+      bg_fill: "#fff",
+      bg_fill_opacity: .6,
+      stroke: "#fff",
+      stroke_opacity: .8,
+      stroke_width: 1
+    };
+    return Theme;
+  })();
+  dipsy.Pop = (function() {
+    __extends(Pop, Backbone.Model);
+    function Pop() {
+      this.togglePosted = __bind(this.togglePosted, this);
+      this.setPosted = __bind(this.setPosted, this);
+      this.show = __bind(this.show, this);
+      this.hide = __bind(this.hide, this);
+      this.getPos = __bind(this.getPos, this);
+      this.getRoot = __bind(this.getRoot, this);
+      this.getPelement = __bind(this.getPelement, this);
+      this.getElement = __bind(this.getElement, this);
+      this.setContent = __bind(this.setContent, this);
+      this.setOffset = __bind(this.setOffset, this);
+      this.setCenter = __bind(this.setCenter, this);
+      this.setAnchor = __bind(this.setAnchor, this);
+      Pop.__super__.constructor.apply(this, arguments);
+    }
+    Pop.prototype.defaults = {
+      className: "",
+      view: void 0,
+      root: void 0,
+      pelement: void 0,
+      anchor: {
+        x: 0,
+        y: 0
+      },
+      offset: {
+        x: 0,
+        y: 0
+      },
+      center: {
+        x: 0,
+        y: 0
+      },
+      hitch: (Pop.prototype.x = 0, Pop.prototype.y = 0),
+      size: {
+        w: 100,
+        h: 100
+      },
+      theme: new dipsy.Theme(),
+      handle_mouse: true,
+      follow_mouse: false,
+      posted: false,
+      drag_move: false,
+      force_move: false,
+      fixed: true,
+      neighbors: void 0,
+      colliders: void 0,
+      nve: void 0,
+      element: void 0,
+      bbox: void 0,
+      pbbox: void 0,
+      visible: false
+    };
+    Pop.prototype.initialize = function() {
+      var pelement;
+      pelement = this.getPelement().node();
+      this.set({
+        nve: pelement.nearestViewportElement
+      });
+      this.setContent(this.get("content"));
+      this.setAnchor(this.get("anchor"));
+      this.setOffset(this.get("offset"));
+      this.bind("dipsy:hide", this.hide);
+      return this.bind("dipsy:show", this.show);
+    };
+    Pop.prototype.setAnchor = function(point, transform) {
+      var matrix, mp, nve, p, pelement;
+      if (transform == null) {
+        transform = true;
+      }
+      if (transform) {
+        pelement = this.getPelement().node();
+        nve = this.get("nve");
+        matrix = pelement.getTransformToElement(nve);
+        mp = nve.createSVGPoint();
+        mp.x = point.x;
+        mp.y = point.y;
+        p = mp.matrixTransform(matrix);
+        return this.set({
+          anchor: p
         });
-        return ret;
-    },
-
-    getAll: function()
-    {
-        return this.pops;
-    },
-
-    buildQuadTree: function()
-    {
-        console.log("build qt")
-        console.log(this.pops)
-        this.qt = d3.geom.quadtree(this.pops);
-        console.log(this.qt);
-    },
-
-    getNeighbors: function(pop)
-    {
-        //TODO: build quadtree if not already built
-
-        //get the neighboring pops of the given pop
-        //This does assume equal size (we could miss a bigger tooltip if it is in upper left)
-        var nn = []; 
-        var x0 = pop.x - pop.w;
-        var y0 = pop.y - pop.h;
-        var x3 = pop.x + pop.w;
-        var y3 = pop.y + pop.h;
-        this.qt.visit(function(node, x1, y1, x2, y2) 
-        {   
-            p = node.point;
-            if (p && (p.x >= x0) && (p.x < x3) && (p.y >= y0) && (p.y < y3) && p != pop) nn.push(p);
-            return x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0; 
-        }); 
-        return nn;
-    },
-
-    getColliders: function(pop)
-    {
-        var colliders = [];
-        var nn = this.getNeighbors(pop);
-        pop.neighbors = nn;
-
-        //TODO: actual collision detection
-        nn.forEach(function(n)
-        {
-            if(false)
-            { 
-                colliders.push(n);
-            }
-        })
-    },
-
-    initForce: function(w, h, gravity, charge)
-    {
-        this.force = d3.layout.force()
-            .gravity(gravity)
-            .charge(charge)
-            .size([w, h]);
-
-        this.nodes = this.force.nodes();
-
-        var that = this;
-        this.pops.forEach(function(pop)
-        {
-            that.nodes.push(pop.getCleat());
-        })
-
-        this.force.on("tick", function(e) 
-        {
-            var k = e.alpha * .1;
-            that.nodes.forEach(function(node, i) 
-            {
-                var pop = that.pops[i];
-                that.getColliders(pop);
-                //TODO use collision check
-                if(pop.neighbors.length == 0 || pop.hidden)
-                {
-                    //no colliders, so don't do force
-                    pop.fixed = true;
-                }
-                else
-                {
-                    pop.fixed = false;
-                    var anchor = that.pops[i].anchor;
-                    node.x += (anchor.x - node.x) * k;
-                    //node.y += (anchor.y - node.y) * k;
-                    that.pops[i].setCleat(node, false);
-                    //that.pops[i].setCleat(node, true);
-
-                }
+      } else {
+        return this.set({
+          anchor: point
+        });
+      }
+    };
+    Pop.prototype.setCenter = function(point, transform) {
+      var anchor, matrix, mp, nve, offset, p, pelement, x, y;
+      if (transform == null) {
+        transform = true;
+      }
+      anchor = this.get("anchor");
+      offset = this.get("offset");
+      if (transform) {
+        pelement = this.getPelement().node();
+        nve = this.get("nve");
+        matrix = pelement.getTransformToElement(nve);
+        mp = nve.createSVGPoint();
+        mp.x = point.x;
+        mp.y = point.y;
+        p = mp.matrixTransform(matrix);
+      } else {
+        p = point;
+      }
+      x = p.x - offset.x - anchor.x;
+      y = p.y - offset.y - anchor.y;
+      return this.set({
+        center: {
+          x: x,
+          y: y
+        }
+      });
+    };
+    Pop.prototype.setOffset = function(offset) {
+      var size;
+      if (typeof offset === "string") {
+        size = this.get("size");
+        switch (offset) {
+          case "center":
+            return this.set({
+              offset: {
+                x: 0,
+                y: 0
+              }
             });
-
+          case "N":
+            return this.set({
+              offset: {
+                x: 0,
+                y: size.h / 2 + 10
+              }
+            });
+          case "S":
+            return this.set({
+              offset: {
+                x: 0,
+                y: -size.h / 2 - 10
+              }
+            });
+          case "E":
+            return this.set({
+              offset: {
+                x: size.w + 10,
+                y: 0
+              }
+            });
+          case "W":
+            return this.set({
+              offset: {
+                x: -size.w - 10,
+                y: 0
+              }
+            });
+          default:
+            return this.set({
+              offset: {
+                x: 0,
+                y: 0
+              }
+            });
+        }
+      } else if (typeof offset === "undefined") {
+        return this.set({
+          offset: {
+            x: 0,
+            y: 0
+          }
         });
-
-
-    },
-
-    startForce: function()
-    {
-        this.force.alpha = .1
-        this.force.start();
-    },
-
-    stopForce: function()
-    {
-        this.force.stop();
-    },
-
-    toggleForce: function()
-    {
-
+      } else {
+        return this.set({
+          offset: offset
+        });
+      }
+    };
+    Pop.prototype.setContent = function(content) {
+      if (typeof content === "function") {
+        return this.set({
+          content: content
+        });
+      } else {
+        return this.set({
+          content: function(ele) {
+            return ele.append("svg:text").text(content).attr("x", 5).attr("y", function() {
+              var bbox;
+              bbox = this.getBBox();
+              return bbox.height + 5;
+            });
+          }
+        });
+      }
+    };
+    Pop.prototype.getElement = function() {
+      return d3.select("#" + this.get("element"));
+    };
+    Pop.prototype.getPelement = function() {
+      return d3.select("#" + this.get("pelement"));
+    };
+    Pop.prototype.getRoot = function() {
+      return d3.select("#" + this.get("root"));
+    };
+    Pop.prototype.getPos = function() {
+      var anchor, center, offset, x, y;
+      anchor = this.get("anchor");
+      offset = this.get("offset");
+      center = this.get("center");
+      x = anchor.x + offset.x + center.x;
+      y = anchor.y + offset.y + center.y;
+      return {
+        x: x,
+        y: y
+      };
+    };
+    Pop.prototype.hide = function() {
+      return this.set({
+        visible: false
+      });
+    };
+    Pop.prototype.show = function() {
+      return this.set({
+        visible: true
+      });
+    };
+    Pop.prototype.setPosted = function(posted) {
+      return this.set({
+        posted: posted
+      });
+    };
+    Pop.prototype.togglePosted = function() {
+      return this.set({
+        posted: !this.get("posted")
+      });
+    };
+    return Pop;
+  })();
+  dipsy.Pops = (function() {
+    __extends(Pops, Backbone.Collection);
+    function Pops() {
+      this.calcColliders = __bind(this.calcColliders, this);
+      this.getColliders = __bind(this.getColliders, this);
+      this.getNeighbors = __bind(this.getNeighbors, this);
+      this.buildQuadTree = __bind(this.buildQuadTree, this);
+      this.stopForce = __bind(this.stopForce, this);
+      this.startForce = __bind(this.startForce, this);
+      this.initForce = __bind(this.initForce, this);
+      this.render = __bind(this.render, this);
+      this.select = __bind(this.select, this);
+      this.addView = __bind(this.addView, this);
+      Pops.__super__.constructor.apply(this, arguments);
     }
-
-
-}
-
-dipsy.Pop = function(root, id, pelement, content, clss)
-{
-    //default values
-    this.root = root;
-    this.id = id;
-    this.class = clss;
-    this.pelement = pelement;
-    var pbbox = pelement.getBBox();
-    this.parent_bbox = pbbox;
-    this.content = content;
-    this.cleat = {"x":0, "y":0};
-    this.offset = {"x":0, "y":0};
-    this.theme = new dipsy.Theme();
-    //not sure if its a good idea to store this for every one (vs accessing)
-    this.nve = pelement.nearestViewportElement;
-
-    //handle mouse events?
-    this.handle_mouse = true;
-    //does the tooltip follow the mouse on hover
-    this.follow_mouse = false;
-    //stuck determines visibility on mouse hover
-    this.stuck = false;
-
-    //move according to force
-    this.force_move = false;
-    this.mouse_move = false;
-
-    var cleat = { "x": pbbox.x + pbbox.width/2,
-                   "y": pbbox.y + pbbox.height/2}
-
-    this.init();
-    
-    this.setCleat(cleat);
-    this.setMouseHandlers();
-    
-    this.hide();
-}
-
-dipsy.Pop.prototype = {
-    init: function()
-    {
-        //initialize the tooltip
-        this.render();
-        this.setOffset();
-        this.update();
- 
-    },
-
-    render: function()
-    {
-        //generate the svg for the background and 
-        if(!_.isUndefined(this.element))
-        {
-            this.element.remove()
+    Pops.prototype.model = dipsy.Pop;
+    Pops.prototype.url = "/";
+    Pops.prototype.force_status = false;
+    Pops.prototype.initialize = function() {
+      return this.bind("add", this.addView);
+    };
+    Pops.prototype.addView = function(pop) {
+      return pop.set({
+        view: new dipsy.PopView({
+          model: pop
+        })
+      });
+    };
+    Pops.prototype.select = function(id) {
+      return this.find(__bind(function(pop) {
+        return pop.get("pelement") === id;
+      }, this));
+    };
+    Pops.prototype.render = function() {
+      console.log("render all!");
+      return this.each(function(pop) {
+        var view;
+        view = pop.get("view");
+        return view.render();
+      });
+    };
+    Pops.prototype.initForce = function(w, h) {
+      this.force = d3.layout.force().gravity(0).charge(-50).size([w, h]).annealing(.95);
+      this.nodes = this.force.nodes();
+      this.each(__bind(function(pop) {
+        var node;
+        node = pop.getPos();
+        node.cid = pop.cid;
+        return this.nodes.push(node);
+      }, this));
+      return this.force.on("tick", __bind(function(e) {
+        var k;
+        this.force_status = true;
+        if (e.stopping) {
+          this.force_status = false;
+          this.trigger("force:stopped");
+          return true;
         }
-
-        this.element = this.root.append("svg:g")
-            .attr("class", "dipsy_pop " + this.class)
-
-        var bgrect = this.element.append("svg:rect")
-            .attr("class", "dipsy_bgrect");
-
-        if(typeof(this.content) == "function")
-        {
-            //console.log(this.element);
-            //console.log(content);
-            this.content(this.element);
+        k = e.alpha * .1;
+        return this.nodes.forEach(__bind(function(node, i) {
+          var anchor, pop;
+          pop = this.getByCid(node.cid);
+          anchor = pop.get("anchor");
+          node.x += (anchor.x - node.x) * k;
+          node.y += (anchor.y - node.y) * k;
+          return pop.setCenter(node, false);
+        }, this));
+      }, this));
+    };
+    Pops.prototype.startForce = function() {
+      return this.force.start();
+    };
+    Pops.prototype.stopForce = function() {
+      return this.force.stop();
+    };
+    Pops.prototype.buildQuadTree = function() {
+      console.log("build qt");
+      this.qt = d3.geom.quadtree(this.nodes);
+      return console.log(this.qt);
+    };
+    Pops.prototype.getNeighbors = function(pop) {
+      var nn, x0, x3, y0, y3;
+      nn = [];
+      x0 = pop.x;
+      y0 = pop.y;
+      x3 = pop.x + pop.w;
+      y3 = pop.y + pop.h;
+      this.qt.visit(__bind(function(node, x1, y1, x2, y2) {
+        var p;
+        p = node.point;
+        if (p && (p.x >= x0) && (p.x < x3) && (p.y >= y0) && (p.y < y3) && p !== pop) {
+          nn.push(p);
         }
-        // if(typeof(content) == "string")
-        else
-        {
-            this.element.append("svg:text")
-                .text(this.content)
-                .attr("x", 5)
-                .attr("y", function(d) 
-                {
-                    var bbox = this.getBBox();
-                    return bbox.height/2 + 5;
-                });
+        return x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0;
+      }, this));
+      return nn;
+    };
+    Pops.prototype.getColliders = function(pop) {
+      var colliders, nn;
+      colliders = [];
+      nn = this.getNeighbors(pop);
+      nn.forEach(__bind(function(n) {
+        if (false) {
+          return colliders.push(n);
         }
-
-        var cbbox = this.element.node().getBBox();
-        if( _.isUndefined(this.w))
-        {
-            var w = cbbox.width + 10;
-            this.w = w;
-        }
-        else
-        {
-            var w = this.w;
-        }
-        if( _.isUndefined(this.h))
-        {
-            var h = cbbox.height;
-            this.h = h;
-        }
-        else
-        {
-            var h = this.h;
-        }
-
-        bgrect
-            .attr("width", w)
-            .attr("height", h)
-    
-     },
-
-    update: function()
-    {
-        //update the appearance of our tooltip using the theme
-        var bgrect = this.element.select(".dipsy_bgrect")
-            .attr("stroke", this.theme.stroke)
-            .attr("stroke-opacity", this.theme.stroke_opacity)
-            .attr("stroke-width", this.theme.stroke_width)
-            .attr("fill", this.theme.bg_fill)
-            .attr("fill-opacity", this.theme.bg_fill_opacity);
-    },
-
-    setTheme: function(theme)
-    {
-        this.theme = theme;
-    },
-
-    getTheme: function()
-    {
-        return this.theme;
-    },
-
-    show: function()
-    {
-        this.element.attr("visibility", "visible");
-        this.hidden = false;
-    },
-
-    hide: function()
-    {
-        this.element.attr("visibility", "hidden");
-        this.hidden = true;
-    },
-
-    remove: function()
-    {
-        //console.log("remove");
-    },
-
-    setCleat: function(point, transform)
-    {
-        //default value of transform should be true
-        if(typeof(transform) == 'undefined') transform = true;
-        if(transform)
-        {
-            var matrix = this.pelement.getTransformToElement(this.nve);
-            var mp = this.nve.createSVGPoint();
-            mp.x = point.x;
-            mp.y = point.y;
-            var p = mp.matrixTransform(matrix);
-            this.cleat = p;
-        }
-        else
-        {
-            this.cleat = point;
-        }
-        this.move();
-        //console.log(this.cleat);
-    },
-
-    getCleat: function()
-    {
-        return this.cleat;
-    },
-
-    setOffset: function(offset)
-    {
-        if(typeof(offset) == "string")
-        {
-            var cbbox = this.element.node().getBBox();
-            var w = cbbox.width;
-            var h = cbbox.height;
-
-            //console.log(offset);
-            switch(offset)
-            {
-                case "center":
-                    this.offset = {"x": -w/2, "y":-h/2};
-                    break;
-                case "N":
-                    this.offset = { "x":  -w/2, "y":  +10};
-                    break;
-                case "S":
-                    this.offset = { "x":  -w/2, "y":  -h -10};
-                    break;
-                case "E":
-                    this.offset = { "x":  +10, "y":  -h/2};
-                    break;
-                case "W":
-                    this.offset = { "x":  -w+10, "y": -h/2};
-                    break;
-
-                default:
-                    this.offset = {"x": 0, "y": 0};
-                    break;
-            }
-        }
-        else if(typeof(offset) == "undefined")
-        {
-            this.offset = {"x": 0, "y": 0};
-        }
-        else
-        {
-            this.offset = offset;
-        }
-        this.move();
-    },
-
-    move: function()
-    {
-        this.x = this.cleat.x + this.offset.x;
-        this.y = this.cleat.y + this.offset.y;
-        //TODO: name this function move? just want to update translation if cleat has changed
-        //this.element.attr("transform", "translate(" + [this.cleat.x + this.offset.x, this.cleat.y + this.offset.y] + ")");
-        this.element.attr("transform", "translate(" + [this.x, this.y] + ")");
-    },
-
-
-    setStuck: function(stuck)
-    {
-        this.stuck = stuck;
-    },
-
-    setFollowMouse: function(follow_mouse)
-    {
-        this.follow_mouse = follow_mouse;
-        this.setMouseHandlers();
-    },
-
-    setHandleMouse: function(handle_mouse)
-    {
-        this.handle_mouse = handle_mouse;
-        this.setMouseHandlers();
-    },
-
-
-    setMouseHandlers: function()
-    {
-        var that = this;
-        var parent_out = function()
-        {
-            //check if we are mousing out of our parent and into ourselves
-            var ee = d3.event.toElement;
-            var eles = that.element[0][0].childNodes;
-            for(i in eles)
-            {
-                if (ee == eles[i])
-                {
-                    //need to cancel the event
-                    //not sure why stopImmediatePropogation is necessary
-                    //d3.event.preventDefault();
-                    //d3.event.stopPropagation();
-                    d3.event.stopImmediatePropagation();
-                    return false;
-                }
-            }
-            if(!that.stuck)
-            {
-                that.hide.apply(that, arguments);
-            }
-        }
-        var this_out = function()
-        {
-            //console.log("HIDE");
-            //check if we are mousing out of ourselves and into our parent 
-            var ee = d3.event.toElement;
-            var eles = that.element[0][0].childNodes;
-            for(i in eles)
-            {
-                if (ee == eles[i])
-                {
-                    return false;
-                }
-            }
-            //if we are mousing out of the popup into the parent element
-            if (ee == that.pelement)
-            {
-                return false;
-            }
-            //if we are mousing out of the popup into some other element
-            else
-            {
-                //console.log("exiting to other state");
-                //TODO this seems really hacky
-                //we are making sure we call the mouseout of the parent element
-                var pel = d3.select(that.pelement)[0][0];
-                if(pel.__onmouseout)
-                {
-                    pel.__onmouseout(d3.event);
-                }
-            }
-            if(!that.stuck)
-            {
-                that.hide.apply(that, arguments);
-            }
-        }
-
-        var this_over = function()
-        {
-        }
-
-        var parent_over = function()
-        {
-            that.show.apply(that, arguments);
-        }
-
-        var parent_move = function()
-        {
-            //console.log(d3.svg.mouse(that.pelement));
-            if(!that.stuck)
-            {
-                var m = d3.svg.mouse(that.pelement);
-                that.setCleat({"x":m[0], "y":m[1]});
-                that.move();
-            }
-        }
-        var parent_click = function()
-        {
-            that.stuck = !that.stuck;
-        }
-
-        if(this.handle_mouse)
-        {
-            //mouse events on parent element
-            var papa = d3.select(this.pelement)
-                .on("mouseover.dipsy"+this.class, parent_over)
-                .on("mouseout.dipsy"+this.class, parent_out)
-                .on("click.dipsy"+this.class, parent_click)
-
-            //mouse events on the tooltip itself
-            this.element.on("mouseout.dipsy"+this.class, this_out);
-            this.element.on("mouseover.dipsy"+this.class, this_over);
-
-            //if we want to follow the mouse
-            if(this.follow_mouse)
-            {
-                this.element.on("mousemove.dipsy"+this.class, parent_move);
-                papa.on("mousemove.dipsy"+this.class, parent_move);
-            }
-            else
-            {
-                this.element.on("mousemove.dipsy"+this.class, null);
-                papa.on("mousemove.dipsy"+this.class, null);
-            }
-        }
-        else
-        {
-            //mouse events on parent element
-            var papa = d3.select(this.pelement)
-                .on("mouseover.dipsy"+this.class, null)
-                .on("mouseout.dipsy"+this.class, null)
-                .on("click.dipsy"+this.class, null)
-
-            //mouse events on the tooltip itself
-            this.element.on("mouseout.dipsy"+this.class, null);
-            this.element.on("mouseover.dipsy"+this.class, null);
-        }
+      }, this));
+      return colliders;
+    };
+    Pops.prototype.calcColliders = function() {
+      return "tooltips.buildQuadTree()\ncounts = []\ncount = 0 \n/*\ntooltips.pops.forEach(function(pop)\n{\n    nn = tooltips.getNeighbors(pop).length\n    counts.push(nn)\n    if(nn > 0 )\n        count++\n});\nconsole.log(counts);\nconsole.log(count);\n*/\n\nconsole.log(\"NY\")\npop = tooltips.pops[2];\nconsole.log(pop)\nnn = tooltips.getNeighbors(pop)\nconsole.log(nn)";
+    };
+    return Pops;
+  })();
+  return dipsy.PopView = (function() {
+    __extends(PopView, Backbone.View);
+    function PopView() {
+      this.setMouseHandlers = __bind(this.setMouseHandlers, this);
+      this.render = __bind(this.render, this);
+      this.updatePos = __bind(this.updatePos, this);
+      this.updateSize = __bind(this.updateSize, this);
+      this.updateVisible = __bind(this.updateVisible, this);
+      this.updateTheme = __bind(this.updateTheme, this);
+      PopView.__super__.constructor.apply(this, arguments);
     }
-
-}
-
-
-
-dipsy.Theme = function()
-{
-    this.bg_fill="#fff";
-    this.bg_fill_opacity=.6;
-    this.stroke="#fff";
-    this.stroke_opacity=.8;
-    this.stroke_width=1;
-}
-
-dipsy.Theme.prototype = 
-{
- 
-}
+    PopView.prototype.initialize = function() {
+      this.model.bind("change:anchor", this.updatePos);
+      this.model.bind("change:offset", this.updatePos);
+      this.model.bind("change:center", this.updatePos);
+      this.model.bind("change:size", this.updateSize);
+      this.model.bind("change:visible", this.updateVisible);
+      this.bind("dipsy:rendered", this.setMouseHandlers);
+      this.bind("dipsy:rendered", this.updatePos);
+      this.bind("dipsy:rendered", this.updateSize);
+      this.bind("dipsy:rendered", this.updateTheme);
+      return this.bind("dipsy:rendered", this.updateVisible);
+    };
+    PopView.prototype.updateTheme = function() {
+      var bgrect, element, theme;
+      element = this.model.getElement();
+      theme = this.model.get("theme").toJSON();
+      return bgrect = element.select(".dipsy_bgrect").attr("stroke", theme.stroke).attr("stroke-opacity", theme.stroke_opacity).attr("stroke-width", theme.stroke_width).attr("fill", theme.bg_fill).attr("fill-opacity", theme.bg_fill_opacity);
+    };
+    PopView.prototype.updateVisible = function() {
+      var element, visible;
+      visible = this.model.get("visible") ? "visible" : "hidden";
+      return element = this.model.getElement().attr("visibility", visible);
+    };
+    PopView.prototype.updateSize = function() {
+      var bgrect, element, size;
+      element = this.model.getElement();
+      size = this.model.get("size");
+      return bgrect = element.select(".dipsy_bgrect").attr("width", size.w).attr("height", size.h);
+    };
+    PopView.prototype.updatePos = function() {
+      var element, pos, size;
+      element = this.model.getElement();
+      pos = this.model.getPos();
+      size = this.model.get("size");
+      return element.attr("transform", "translate(" + [pos.x - size.w / 2, pos.y - size.h / 2] + ")");
+    };
+    PopView.prototype.render = function() {
+      var bgrect, content, element, elid, root;
+      if (_.isUndefined(this.model.get("element"))) {
+        root = this.model.getRoot();
+        elid = "dipsy_pop_" + this.model.get("className") + "_" + this.model.cid;
+        element = root.append("svg:g").attr("id", elid);
+        bgrect = element.append("svg:rect").attr("class", "dipsy_bgrect");
+        this.model.set({
+          element: elid
+        });
+      } else {
+        element = this.model.getElement();
+        element.select(".dipsy_content").remove();
+      }
+      content = element.append("svg:g").attr("class", ".dipsy_content");
+      this.model.get("content")(content);
+      return this.trigger("dipsy:rendered");
+    };
+    PopView.prototype.setMouseHandlers = function() {
+      var dclass, element, papa, parent_click, parent_move, parent_out, parent_over, this_out, this_over;
+      parent_out = __bind(function() {
+        var e, ee, eles, _i, _len;
+        ee = d3.event.toElement;
+        eles = this.model.getElement().node().childNodes;
+        for (_i = 0, _len = eles.length; _i < _len; _i++) {
+          e = eles[_i];
+          if (ee === e) {
+            console.log("CANCEL");
+            d3.event.stopImmediatePropagation();
+            false;
+          }
+        }
+        if (!this.model.get("posted")) {
+          return this.model.trigger("dipsy:hide");
+        }
+      }, this);
+      this_out = __bind(function() {
+        var e, ee, eles, pelement, _i, _len;
+        ee = d3.event.toElement;
+        pelement = this.model.getPelement().node();
+        eles = this.model.getElement().node().childNodes;
+        for (_i = 0, _len = eles.length; _i < _len; _i++) {
+          e = eles[_i];
+          if (ee === e) {
+            return false;
+          }
+        }
+        if (ee === pelement) {
+          false;
+        } else {
+          if (pelement.__onmouseout) {
+            pelement.__onmouseout(d3.event);
+          }
+        }
+        if (!this.model.get("posted")) {
+          return this.model.trigger("dipsy:hide");
+        }
+      }, this);
+      this_over = __bind(function() {
+        return false;
+      }, this);
+      parent_over = __bind(function() {
+        return this.model.trigger("dipsy:show");
+      }, this);
+      parent_move = __bind(function() {
+        var m, pelement;
+        if (!this.model.get("posted")) {
+          pelement = this.model.getPelement().node();
+          m = d3.svg.mouse(pelement);
+          return this.model.setAnchor({
+            "x": m[0],
+            "y": m[1]
+          });
+        }
+      }, this);
+      parent_click = __bind(function() {
+        return this.model.togglePosted();
+      }, this);
+      if (this.model.get("handle_mouse")) {
+        dclass = this.model.get("className");
+        papa = this.model.getPelement().on("mouseover.dipsy_" + dclass, parent_over).on("mouseout.dipsy_" + dclass, parent_out).on("click.dipsy_" + dclass, parent_click);
+        element = this.model.getElement();
+        element.on("mouseout.dipsy_" + dclass, this_out);
+        element.on("mouseover.dipsy_" + dclass, this_over);
+        if (this.model.get("follow_mouse")) {
+          element.on("mousemove.dipsy_" + dclass, parent_move);
+          return papa.on("mousemove.dipsy_" + dclass, parent_move);
+        } else {
+          element.on("mousemove.dipsy_" + dclass, null);
+          return papa.on("mousemove.dipsy_" + dclass, null);
+        }
+      } else {
+        dclass = this.model.get("className");
+        papa = this.model.getPelement().on("mouseover.dipsy_" + dclass, null).on("mouseout.dipsy_" + dclass, null).on("click.dipsy_" + dclass, null);
+        element = this.model.getElement();
+        element.on("mouseout.dipsy_" + dclass, null);
+        element.on("mouseover.dipsy_" + dclass, null);
+        return false;
+      }
+    };
+    return PopView;
+  })();
+});

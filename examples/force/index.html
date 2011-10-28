@@ -5,9 +5,12 @@
     <script type="text/javascript" src="../../lib/d3/d3.js"></script> 
     <script type="text/javascript" src="../../lib/d3/d3.geom.js"></script>
     <script type="text/javascript" src="../../lib/d3/d3.layout.js"></script> 
-
+    
+    <script type="text/javascript" src="../../lib/jquery.min.js"></script>
     <script type="text/javascript" src="../../lib/underscore-min.js"></script>
+    <script type="text/javascript" src="../../lib/backbone.js"></script>
 
+    <script type="text/javascript" src="../../src/d3force.js"></script>
     <script type="text/javascript" src="../../src/dipsy.js"></script>
 
    <style type="text/css">
@@ -24,20 +27,18 @@ body {
 
     <script type="text/javascript">
         
+$(document).ready(function() {
     var w = 800,
         h = 600;
     //setup svg canvas
     var svg = d3.select("#chart")
         .append("svg:svg")
-            //.attr("width", "1000")
-            //.attr("height", "700")
             .attr("width", w)
             .attr("height", h)
             //.attr("viewBox", "0 0 " + w + " " + h)
             .attr("viewBox", "0 0 800 600")
             .attr("preserveAspectRatio", "xMinYMin meet")
             .attr("id", "charts");
-            //.on("click", clickypie)
 
     var bgrect = svg.append("svg:rect")
         .attr("width", "100%")
@@ -48,17 +49,20 @@ body {
 
 
 
-    var labels = new dipsy.Pops(svg)
-    labels.follow_mouse = true;
+    var labels = new dipsy.Pops()
 
+    /*
     //TODO make force part of dipsy
     //force layout
     var force = d3.layout.force()
         .gravity(0)
         .charge(-10)
-        .size([w, h]);
+        .size([w, h])
+        //annealing defaults to .99
+        .annealing(.9);
 
     var nodes = force.nodes();
+    */
 
     function bakepie(classname, data, x, y, r)
     { 
@@ -85,43 +89,77 @@ body {
             .attr("fill", function(d, i) { return color(i); })
             .attr("fill-opacity", .6)
             .attr("d", arc)
+            .attr("id", function(d,i) 
+            {
+                return classname + "_" + i;
+            })
             .attr("tooltip", function(d,i)
             {
-                var lp = place_label(d, r+20);
+                var id = classname + "_" + i;
+                var size = {w: 30, h: 30};
+                var offset = "center";
+                var lp = place_label(d, r + 30);
                 var content_format = d3.format(".2r");
                 var content = content_format(d.value);
-                var label = labels.add(this, content);
-                label.setCleat(lp);
-                label.anchor = label.getCleat();//force anchor
-                label.setStuck(true);
-                label.setOffset("center");
-                label.show();
-                var lt = label.getTheme();
-                lt.bg_fill = color(i);
-                lt.bg_fill_opacity = .6;
-                lt.stroke = "#555";
-                lt.stroke_opacity = .9;
-                lt.stroke_width = 2;
-                label.update();
 
+                var theme = new dipsy.Theme({
+                    bg_fill: color(i),
+                    bg_fill_opacity: .6,
+                    stroke: "#555",
+                    stroke_opacity: .9,
+                    stroke_width: 2
+                    })
+
+                labels.add({
+                    className: "tooltip", 
+                    root: "charts", //class name of the root svg element
+                    pelement: id,
+                    anchor: lp,
+                    content: content, 
+                    offset: offset,
+                    size:size,
+                    theme: theme,
+                    //follow_mouse: true
+                    posted: true,
+                    visible: true
+                })
+
+                var tt = labels.at(labels.length-1);
+
+
+                /*
                 //force layout
-                nodes.push(label.getCleat());
+                lp.id = tt.cid;
+                //console.log(tt)
+                //console.log(lp.id);
+                nodes.push(lp)
                 //save the id so we can access this tooltip later
-                d.label_id = label.id;
-                return label.id;
+                //d.label_id = label.id;
+                */
+                return tt.cid;
             })
+
+
+            labels.render()
+            labels.initForce()
+
+            paths
             .on("mouseover", function(d, i) 
             {
+                //console.log(this)
                 d3.select(this)
                     .attr("fill-opacity", 1)
                     .attr("tooltip", function(d,i)
                     {
+                        //console.log(this.id);
                         //console.log(d);
+                        /*
                         var label = labels.pops[d.label_id];
                         var lt = label.getTheme();
                         lt.bg_fill_opacity = 1;
                         lt.stroke_opacity = .3;
                         label.update();
+                        */
                     });
             })
             .on("mouseout", function(d, i) 
@@ -131,11 +169,13 @@ body {
                     .attr("tooltip", function(d,i)
                     {
                         //console.log(d);
+                        /*
                         var label = labels.pops[d.label_id];
                         var lt = label.getTheme();
                         lt.bg_fill_opacity = .6;
                         lt.stroke_opacity = .9;
                         label.update();
+                        */
                     });
 
             });
@@ -143,23 +183,8 @@ body {
 
             console.log("GO");
             //force layout
-            force.on("tick", function(e) 
-            {
-                var k = e.alpha * .1;
-                nodes.forEach(function(node, i) 
-                {
-                    var anchor = labels.pops[i].anchor;
-                    node.x += (anchor.x - node.x) * k;
-                    node.y += (anchor.y - node.y) * k;
-
-                    node.x += .003 * (x - node.x) * -k;
-                    node.y += .003 * (y - node.y) * -k;
-                
-                    labels.pops[i].setCleat(node, false);
-                });
-
-            });
-
+            labels.startForce();
+            
 
     }
 
@@ -192,17 +217,18 @@ body {
 */
 
 
-    force.start();
+    //force.start();
     //force.stop();
 
 
     svg.on("click", function()
     {
-        force.stop();
+        //force.stop();
     });
 
 
 
+});
 
    </script>
  </body>
