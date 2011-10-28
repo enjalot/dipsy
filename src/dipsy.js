@@ -36,6 +36,7 @@ $(document).ready(function() {
       this.getElement = __bind(this.getElement, this);
       this.setContent = __bind(this.setContent, this);
       this.setOffset = __bind(this.setOffset, this);
+      this.setCenter = __bind(this.setCenter, this);
       this.setAnchor = __bind(this.setAnchor, this);
       Pop.__super__.constructor.apply(this, arguments);
     }
@@ -109,6 +110,33 @@ $(document).ready(function() {
           anchor: point
         });
       }
+    };
+    Pop.prototype.setCenter = function(point, transform) {
+      var anchor, matrix, mp, nve, offset, p, pelement, x, y;
+      if (transform == null) {
+        transform = true;
+      }
+      anchor = this.get("anchor");
+      offset = this.get("offset");
+      if (transform) {
+        pelement = this.getPelement().node();
+        nve = this.get("nve");
+        matrix = pelement.getTransformToElement(nve);
+        mp = nve.createSVGPoint();
+        mp.x = point.x;
+        mp.y = point.y;
+        p = mp.matrixTransform(matrix);
+      } else {
+        p = point;
+      }
+      x = p.x - offset.x - anchor.x;
+      y = p.y - offset.y - anchor.y;
+      return this.set({
+        center: {
+          x: x,
+          y: y
+        }
+      });
     };
     Pop.prototype.setOffset = function(offset) {
       var size;
@@ -268,18 +296,37 @@ $(document).ready(function() {
       });
     };
     Pops.prototype.initForce = function(w, h) {
-      this.force = d3.layout.force().gravity(0).charge(-10).size([w, h]).annealing(.9);
+      this.force = d3.layout.force().gravity(0).charge(-50).size([w, h]).annealing(.95);
       this.nodes = this.force.nodes();
       this.each(__bind(function(pop) {
-        return this.nodes.push(pop.getPos());
+        var node;
+        node = pop.getPos();
+        node.cid = pop.cid;
+        return this.nodes.push(node);
       }, this));
-      console.log(this.nodes);
       return this.force.on("tick", __bind(function(e) {
-        return "var k = e.alpha * .1;\nnodes.forEach(function(node, i) \n{\n    var anchor = labels.pops[i].anchor;\n    node.x += (anchor.x - node.x) * k;\n    node.y += (anchor.y - node.y) * k;\n\n    node.x += .003 * (x - node.x) * -k;\n    node.y += .003 * (y - node.y) * -k;\n\n    //labels.pops[i].setCleat(node, false);\n});";
+        var k;
+        if (e.stopping) {
+          this.trigger("force:stopped");
+          return true;
+        }
+        k = e.alpha * .1;
+        return this.nodes.forEach(__bind(function(node, i) {
+          var anchor, pop;
+          pop = this.getByCid(node.cid);
+          anchor = pop.get("anchor");
+          node.x += (anchor.x - node.x) * k;
+          node.y += (anchor.y - node.y) * k;
+          return pop.setCenter(node, false);
+        }, this));
       }, this));
     };
-    Pops.prototype.startForce = function() {};
-    Pops.prototype.stopForce = function() {};
+    Pops.prototype.startForce = function() {
+      return this.force.start();
+    };
+    Pops.prototype.stopForce = function() {
+      return this.force.stop();
+    };
     return Pops;
   })();
   return dipsy.PopView = (function() {

@@ -119,6 +119,28 @@ $(document).ready ->
             else
                 @set(anchor: point)
 
+        setCenter: (point, transform = true) =>
+            anchor = @get("anchor")
+            offset = @get("offset")
+
+            if(transform)
+                pelement = @getPelement().node()
+                nve = @get("nve")
+                matrix = pelement.getTransformToElement(nve)
+                mp = nve.createSVGPoint()
+                mp.x = point.x
+                mp.y = point.y
+                p = mp.matrixTransform(matrix)
+                #@set(anchor: p)
+            else
+                p = point
+                #@set(anchor: point)
+
+            x = p.x - offset.x - anchor.x
+            y = p.y - offset.y - anchor.y
+            @set(center: {x: x, y: y})
+
+
         setOffset: (offset) =>
             if typeof(offset) == "string"
                 size = @get("size")
@@ -197,6 +219,7 @@ $(document).ready ->
 
         initialize: ->
             @bind("add", @addView)
+            #@bind("force:stopped", @checkCollisions)
 
         addView: (pop) =>
             pop.set(view: new dipsy.PopView({model: pop}))
@@ -216,34 +239,40 @@ $(document).ready ->
         initForce: (w,h) =>
             @force = d3.layout.force()
                 .gravity(0)
-                .charge(-10)
+                .charge(-50)
                 .size([w, h])
                 #annealing defaults to .99
-                .annealing(.9)
+                .annealing(.95)
 
             @nodes = @force.nodes()
             @each((pop) =>
-                @nodes.push pop.getPos()
+                node = pop.getPos()
+                node.cid = pop.cid
+                @nodes.push node
             )
 
-            console.log @nodes
+            #console.log @nodes
 
             @force.on("tick", (e) =>
-                #console.log(e.alpha, e.stopping);
-                """
-                var k = e.alpha * .1;
-                nodes.forEach(function(node, i) 
-                {
-                    var anchor = labels.pops[i].anchor;
-                    node.x += (anchor.x - node.x) * k;
-                    node.y += (anchor.y - node.y) * k;
+                #console.log(e.alpha, e.stopping)
+                if e.stopping
+                    @trigger("force:stopped")
+                    return true
 
-                    node.x += .003 * (x - node.x) * -k;
-                    node.y += .003 * (y - node.y) * -k;
+                k = e.alpha * .1
+                @nodes.forEach((node, i) =>
+                    pop = @getByCid(node.cid)
+                    anchor = pop.get("anchor")
+                    node.x += (anchor.x - node.x) * k
+                    node.y += (anchor.y - node.y) * k
+
+                    #node.x += .003 * (x - node.x) * -k;
+                    #node.y += .003 * (y - node.y) * -k;
                 
-                    //labels.pops[i].setCleat(node, false);
-                });
-                """ 
+                    #labels.pops[i].setCleat(node, false);
+                    pop.setCenter(node, false)
+                )
+
             )
 
 
@@ -251,8 +280,10 @@ $(document).ready ->
 
 
         startForce: =>
+            @force.start()
 
         stopForce: =>
+            @force.stop()
 
         
 
