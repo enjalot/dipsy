@@ -56,12 +56,16 @@ $(document).ready ->
             #if true this tooltip will follow the mouse pointer on hover over parent element
             follow_mouse: false
             #if true this tooltip will stay on regardless of mouse movement over parent
-            stuck: false
+            #stuck: false
+            posted: false
+
 
             #if true this tooltip is moveable by mouse dragging
             drag_move: false
             #if true this tooltip can be moved by force equations (to avoid overcrowding)
             force_move: false
+            fixed: true 
+
 
             #
             #Collision related attributes
@@ -164,16 +168,26 @@ $(document).ready ->
         getRoot: () =>
             d3.select("#" + @get("root"))
 
+        getPos: () =>
+            #returns the absolute position of the bounding box
+            anchor = @get("anchor")
+            offset = @get("offset")
+            center = @get("center")
+            x = anchor.x + offset.x + center.x
+            y = anchor.y + offset.y + center.y
+            return x:x, y:y
+
+
         hide: () =>
             @set(visible: false)
         show: () =>
             @set(visible: true)
 
-        setStuck: (stuck) =>
-            @set(stuck: stuck)
+        setPosted: (posted) =>
+            @set(posted: posted)
 
-        toggleStuck: () =>
-            @set(stuck: !@get("stuck"))
+        togglePosted: () =>
+            @set(posted: !@get("posted"))
 
 
 
@@ -187,6 +201,10 @@ $(document).ready ->
         addView: (pop) =>
             pop.set(view: new dipsy.PopView({model: pop}))
 
+        select: (id) =>
+            @find((pop) =>
+                pop.get("pelement") == id
+            )
 
         render: =>
             console.log("render all!")
@@ -195,6 +213,48 @@ $(document).ready ->
                 view.render()
             )
 
+        initForce: (w,h) =>
+            @force = d3.layout.force()
+                .gravity(0)
+                .charge(-10)
+                .size([w, h])
+                #annealing defaults to .99
+                .annealing(.9)
+
+            @nodes = @force.nodes()
+            @each((pop) =>
+                @nodes.push pop.getPos()
+            )
+
+            console.log @nodes
+
+            @force.on("tick", (e) =>
+                #console.log(e.alpha, e.stopping);
+                """
+                var k = e.alpha * .1;
+                nodes.forEach(function(node, i) 
+                {
+                    var anchor = labels.pops[i].anchor;
+                    node.x += (anchor.x - node.x) * k;
+                    node.y += (anchor.y - node.y) * k;
+
+                    node.x += .003 * (x - node.x) * -k;
+                    node.y += .003 * (y - node.y) * -k;
+                
+                    //labels.pops[i].setCleat(node, false);
+                });
+                """ 
+            )
+
+
+
+
+
+        startForce: =>
+
+        stopForce: =>
+
+        
 
 
 
@@ -241,13 +301,9 @@ $(document).ready ->
         updatePos: =>
             #TODO: we can tween here
             element = @model.getElement()
-            anchor = @model.get("anchor")
-            offset = @model.get("offset")
-            center = @model.get("center")
+            pos = @model.getPos()
             size = @model.get("size")
-            x = anchor.x + offset.x + center.x - size.w / 2
-            y = anchor.y + offset.y + center.y - size.h / 2
-            element.attr("transform", "translate(" + [x, y] + ")")
+            element.attr("transform", "translate(" + [pos.x - size.w / 2, pos.y - size.h / 2] + ")")
 
 
 
@@ -291,7 +347,7 @@ $(document).ready ->
                         #d3.event.stopPropagation()
                         d3.event.stopImmediatePropagation()
                         false
-                if !@model.get("stuck")
+                if !@model.get("posted")
                     #trigger hide
                     @model.trigger("dipsy:hide")
                     #that.hide.apply(that, arguments);
@@ -323,7 +379,7 @@ $(document).ready ->
                     #console.log(pelement.__onmouseout)
                     if(pelement.__onmouseout)
                         pelement.__onmouseout(d3.event)
-                if(!@model.get("stuck"))
+                if(!@model.get("posted"))
                     @model.trigger("dipsy:hide")
 
             this_over = () =>
@@ -335,14 +391,14 @@ $(document).ready ->
 
             parent_move = () =>
                 #console.log("parent move")
-                if(!@model.get("stuck"))
+                if(!@model.get("posted"))
                     pelement = @model.getPelement().node()
                     m = d3.svg.mouse(pelement)
                     @model.setAnchor({"x":m[0], "y":m[1]})
                     #that.move();
                    
             parent_click = () =>
-                @model.toggleStuck()
+                @model.togglePosted()
 
             if(@model.get("handle_mouse"))
                 #mouse events on parent element

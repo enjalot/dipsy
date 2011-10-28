@@ -51,6 +51,7 @@ $(document).ready(function() {
 
     var labels = new dipsy.Pops()
 
+    /*
     //TODO make force part of dipsy
     //force layout
     var force = d3.layout.force()
@@ -61,6 +62,7 @@ $(document).ready(function() {
         .annealing(.9);
 
     var nodes = force.nodes();
+    */
 
     function bakepie(classname, data, x, y, r)
     { 
@@ -108,38 +110,48 @@ $(document).ready(function() {
                     stroke_width: 2
                     })
 
-                var tt = labels.add({
-                        className: "tooltip", 
-                        root: "charts", //class name of the root svg element
-                        pelement: id,
-                        anchor: lp,
-                        content: content, 
-                        offset: offset,
-                        size:size,
-                        theme: theme,
-                        //follow_mouse: true
-                        stuck: true,
-                        visible: true
-                    })
+                labels.add({
+                    className: "tooltip", 
+                    root: "charts", //class name of the root svg element
+                    pelement: id,
+                    anchor: lp,
+                    content: content, 
+                    offset: offset,
+                    size:size,
+                    theme: theme,
+                    //follow_mouse: true
+                    posted: true,
+                    visible: true
+                })
+
+                var tt = labels.at(labels.length-1);
 
 
+                /*
                 //force layout
+                lp.id = tt.cid;
+                //console.log(tt)
+                //console.log(lp.id);
                 nodes.push(lp)
                 //save the id so we can access this tooltip later
                 //d.label_id = label.id;
-                return id;
+                */
+                return tt.cid;
             })
 
 
             labels.render()
+            labels.initForce()
 
             paths
             .on("mouseover", function(d, i) 
             {
+                //console.log(this)
                 d3.select(this)
                     .attr("fill-opacity", 1)
                     .attr("tooltip", function(d,i)
                     {
+                        //console.log(this.id);
                         //console.log(d);
                         /*
                         var label = labels.pops[d.label_id];
@@ -171,26 +183,6 @@ $(document).ready(function() {
 
             console.log("GO");
             //force layout
-            force.on("tick", function(e) 
-            {
-                console.log(e.alpha, e.stopping);
-                /*
-                var k = e.alpha * .1;
-                nodes.forEach(function(node, i) 
-                {
-                    var anchor = labels.pops[i].anchor;
-                    node.x += (anchor.x - node.x) * k;
-                    node.y += (anchor.y - node.y) * k;
-
-                    node.x += .003 * (x - node.x) * -k;
-                    node.y += .003 * (y - node.y) * -k;
-                
-                    //labels.pops[i].setCleat(node, false);
-                });
-                */
-
-            });
-
 
     }
 
@@ -223,13 +215,13 @@ $(document).ready(function() {
 */
 
 
-    force.start();
+    //force.start();
     //force.stop();
 
 
     svg.on("click", function()
     {
-        force.stop();
+        //force.stop();
     });
 
 

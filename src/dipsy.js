@@ -26,10 +26,11 @@ $(document).ready(function() {
   dipsy.Pop = (function() {
     __extends(Pop, Backbone.Model);
     function Pop() {
-      this.toggleStuck = __bind(this.toggleStuck, this);
-      this.setStuck = __bind(this.setStuck, this);
+      this.togglePosted = __bind(this.togglePosted, this);
+      this.setPosted = __bind(this.setPosted, this);
       this.show = __bind(this.show, this);
       this.hide = __bind(this.hide, this);
+      this.getPos = __bind(this.getPos, this);
       this.getRoot = __bind(this.getRoot, this);
       this.getPelement = __bind(this.getPelement, this);
       this.getElement = __bind(this.getElement, this);
@@ -63,9 +64,10 @@ $(document).ready(function() {
       theme: new dipsy.Theme(),
       handle_mouse: true,
       follow_mouse: false,
-      stuck: false,
+      posted: false,
       drag_move: false,
       force_move: false,
+      fixed: true,
       neighbors: void 0,
       colliders: void 0,
       nve: void 0,
@@ -195,6 +197,18 @@ $(document).ready(function() {
     Pop.prototype.getRoot = function() {
       return d3.select("#" + this.get("root"));
     };
+    Pop.prototype.getPos = function() {
+      var anchor, center, offset, x, y;
+      anchor = this.get("anchor");
+      offset = this.get("offset");
+      center = this.get("center");
+      x = anchor.x + offset.x + center.x;
+      y = anchor.y + offset.y + center.y;
+      return {
+        x: x,
+        y: y
+      };
+    };
     Pop.prototype.hide = function() {
       return this.set({
         visible: false
@@ -205,14 +219,14 @@ $(document).ready(function() {
         visible: true
       });
     };
-    Pop.prototype.setStuck = function(stuck) {
+    Pop.prototype.setPosted = function(posted) {
       return this.set({
-        stuck: stuck
+        posted: posted
       });
     };
-    Pop.prototype.toggleStuck = function() {
+    Pop.prototype.togglePosted = function() {
       return this.set({
-        stuck: !this.get("stuck")
+        posted: !this.get("posted")
       });
     };
     return Pop;
@@ -220,7 +234,11 @@ $(document).ready(function() {
   dipsy.Pops = (function() {
     __extends(Pops, Backbone.Collection);
     function Pops() {
+      this.stopForce = __bind(this.stopForce, this);
+      this.startForce = __bind(this.startForce, this);
+      this.initForce = __bind(this.initForce, this);
       this.render = __bind(this.render, this);
+      this.select = __bind(this.select, this);
       this.addView = __bind(this.addView, this);
       Pops.__super__.constructor.apply(this, arguments);
     }
@@ -236,6 +254,11 @@ $(document).ready(function() {
         })
       });
     };
+    Pops.prototype.select = function(id) {
+      return this.find(__bind(function(pop) {
+        return pop.get("pelement") === id;
+      }, this));
+    };
     Pops.prototype.render = function() {
       console.log("render all!");
       return this.each(function(pop) {
@@ -244,6 +267,19 @@ $(document).ready(function() {
         return view.render();
       });
     };
+    Pops.prototype.initForce = function(w, h) {
+      this.force = d3.layout.force().gravity(0).charge(-10).size([w, h]).annealing(.9);
+      this.nodes = this.force.nodes();
+      this.each(__bind(function(pop) {
+        return this.nodes.push(pop.getPos());
+      }, this));
+      console.log(this.nodes);
+      return this.force.on("tick", __bind(function(e) {
+        return "var k = e.alpha * .1;\nnodes.forEach(function(node, i) \n{\n    var anchor = labels.pops[i].anchor;\n    node.x += (anchor.x - node.x) * k;\n    node.y += (anchor.y - node.y) * k;\n\n    node.x += .003 * (x - node.x) * -k;\n    node.y += .003 * (y - node.y) * -k;\n\n    //labels.pops[i].setCleat(node, false);\n});";
+      }, this));
+    };
+    Pops.prototype.startForce = function() {};
+    Pops.prototype.stopForce = function() {};
     return Pops;
   })();
   return dipsy.PopView = (function() {
@@ -287,15 +323,11 @@ $(document).ready(function() {
       return bgrect = element.select(".dipsy_bgrect").attr("width", size.w).attr("height", size.h);
     };
     PopView.prototype.updatePos = function() {
-      var anchor, center, element, offset, size, x, y;
+      var element, pos, size;
       element = this.model.getElement();
-      anchor = this.model.get("anchor");
-      offset = this.model.get("offset");
-      center = this.model.get("center");
+      pos = this.model.getPos();
       size = this.model.get("size");
-      x = anchor.x + offset.x + center.x - size.w / 2;
-      y = anchor.y + offset.y + center.y - size.h / 2;
-      return element.attr("transform", "translate(" + [x, y] + ")");
+      return element.attr("transform", "translate(" + [pos.x - size.w / 2, pos.y - size.h / 2] + ")");
     };
     PopView.prototype.render = function() {
       var bgrect, content, element, elid, root;
@@ -329,7 +361,7 @@ $(document).ready(function() {
             false;
           }
         }
-        if (!this.model.get("stuck")) {
+        if (!this.model.get("posted")) {
           return this.model.trigger("dipsy:hide");
         }
       }, this);
@@ -351,7 +383,7 @@ $(document).ready(function() {
             pelement.__onmouseout(d3.event);
           }
         }
-        if (!this.model.get("stuck")) {
+        if (!this.model.get("posted")) {
           return this.model.trigger("dipsy:hide");
         }
       }, this);
@@ -363,7 +395,7 @@ $(document).ready(function() {
       }, this);
       parent_move = __bind(function() {
         var m, pelement;
-        if (!this.model.get("stuck")) {
+        if (!this.model.get("posted")) {
           pelement = this.model.getPelement().node();
           m = d3.svg.mouse(pelement);
           return this.model.setAnchor({
@@ -373,7 +405,7 @@ $(document).ready(function() {
         }
       }, this);
       parent_click = __bind(function() {
-        return this.model.toggleStuck();
+        return this.model.togglePosted();
       }, this);
       if (this.model.get("handle_mouse")) {
         dclass = this.model.get("className");
