@@ -26,6 +26,10 @@ $(document).ready(function() {
   dipsy.Pop = (function() {
     __extends(Pop, Backbone.Model);
     function Pop() {
+      this.toggleStuck = __bind(this.toggleStuck, this);
+      this.setStuck = __bind(this.setStuck, this);
+      this.show = __bind(this.show, this);
+      this.hide = __bind(this.hide, this);
       this.getRoot = __bind(this.getRoot, this);
       this.getPelement = __bind(this.getPelement, this);
       this.getElement = __bind(this.getElement, this);
@@ -67,18 +71,20 @@ $(document).ready(function() {
       nve: void 0,
       element: void 0,
       bbox: void 0,
-      pbbox: void 0
+      pbbox: void 0,
+      visible: false
     };
     Pop.prototype.initialize = function() {
       var pelement;
-      console.log("init!!!");
       pelement = this.getPelement().node();
       this.set({
         nve: pelement.nearestViewportElement
       });
       this.setContent(this.get("content"));
       this.setAnchor(this.get("anchor"));
-      return this.setOffset(this.get("offset"));
+      this.setOffset(this.get("offset"));
+      this.bind("dipsy:hide", this.hide);
+      return this.bind("dipsy:show", this.show);
     };
     Pop.prototype.setAnchor = function(point, transform) {
       var matrix, mp, nve, p, pelement;
@@ -104,7 +110,6 @@ $(document).ready(function() {
     };
     Pop.prototype.setOffset = function(offset) {
       var size;
-      console.log(offset);
       if (typeof offset === "string") {
         size = this.get("size");
         switch (offset) {
@@ -190,6 +195,26 @@ $(document).ready(function() {
     Pop.prototype.getRoot = function() {
       return d3.select("." + this.get("root"));
     };
+    Pop.prototype.hide = function() {
+      return this.set({
+        visible: false
+      });
+    };
+    Pop.prototype.show = function() {
+      return this.set({
+        visible: true
+      });
+    };
+    Pop.prototype.setStuck = function(stuck) {
+      return this.set({
+        stuck: stuck
+      });
+    };
+    Pop.prototype.toggleStuck = function() {
+      return this.set({
+        stuck: !this.get("stuck")
+      });
+    };
     return Pop;
   })();
   dipsy.Pops = (function() {
@@ -214,7 +239,9 @@ $(document).ready(function() {
     Pops.prototype.render = function() {
       console.log("render all!");
       return this.each(function(pop) {
-        return pop.get("view").render();
+        var view;
+        view = pop.get("view");
+        return view.render();
       });
     };
     return Pops;
@@ -222,9 +249,11 @@ $(document).ready(function() {
   return dipsy.PopView = (function() {
     __extends(PopView, Backbone.View);
     function PopView() {
+      this.setMouseHandlers = __bind(this.setMouseHandlers, this);
       this.render = __bind(this.render, this);
       this.updatePos = __bind(this.updatePos, this);
       this.updateSize = __bind(this.updateSize, this);
+      this.updateVisible = __bind(this.updateVisible, this);
       this.updateTheme = __bind(this.updateTheme, this);
       PopView.__super__.constructor.apply(this, arguments);
     }
@@ -232,13 +261,24 @@ $(document).ready(function() {
       this.model.bind("change:anchor", this.updatePos);
       this.model.bind("change:offset", this.updatePos);
       this.model.bind("change:center", this.updatePos);
-      return this.model.bind("change:size", this.updateSize);
+      this.model.bind("change:size", this.updateSize);
+      this.model.bind("change:visible", this.updateVisible);
+      this.bind("dipsy:rendered", this.setMouseHandlers);
+      this.bind("dipsy:rendered", this.updatePos);
+      this.bind("dipsy:rendered", this.updateSize);
+      this.bind("dipsy:rendered", this.updateTheme);
+      return this.bind("dipsy:rendered", this.updateVisible);
     };
     PopView.prototype.updateTheme = function() {
       var bgrect, element, theme;
       element = this.model.getElement();
       theme = this.model.get("theme").toJSON();
       return bgrect = element.select(".dipsy_bgrect").attr("stroke", theme.stroke).attr("stroke-opacity", theme.stroke_opacity).attr("stroke-width", theme.stroke_width).attr("fill", theme.bg_fill).attr("fill-opacity", theme.bg_fill_opacity);
+    };
+    PopView.prototype.updateVisible = function() {
+      var element, visible;
+      visible = this.model.get("visible") ? "visible" : "hidden";
+      return element = this.model.getElement().attr("visibility", visible);
     };
     PopView.prototype.updateSize = function() {
       var bgrect, element, size;
@@ -273,9 +313,89 @@ $(document).ready(function() {
       }
       content = element.append("svg:g").attr("class", ".dipsy_content");
       this.model.get("content")(content);
-      this.updatePos();
-      this.updateSize();
-      return this.updateTheme();
+      return this.trigger("dipsy:rendered");
+    };
+    PopView.prototype.setMouseHandlers = function() {
+      var dclass, element, papa, parent_click, parent_move, parent_out, parent_over, this_out, this_over;
+      parent_out = __bind(function() {
+        var e, ee, eles, _i, _len;
+        ee = d3.event.toElement;
+        eles = this.model.getElement().node().childNodes;
+        for (_i = 0, _len = eles.length; _i < _len; _i++) {
+          e = eles[_i];
+          if (ee === e) {
+            console.log("CANCEL");
+            d3.event.stopImmediatePropagation();
+            false;
+          }
+        }
+        if (!this.model.get("stuck")) {
+          return this.model.trigger("dipsy:hide");
+        }
+      }, this);
+      this_out = __bind(function() {
+        var e, ee, eles, pelement, _i, _len;
+        ee = d3.event.toElement;
+        pelement = this.model.getPelement().node();
+        eles = this.model.getElement().node().childNodes;
+        for (_i = 0, _len = eles.length; _i < _len; _i++) {
+          e = eles[_i];
+          if (ee === e) {
+            false;
+          }
+        }
+        if (ee === pelement) {
+          false;
+        } else {
+          if (pelement.__onmouseout) {
+            pelement.__onmouseout(d3.event);
+          }
+        }
+        if (!this.model.get("stuck")) {
+          return this.model.trigger("dipsy:hide");
+        }
+      }, this);
+      this_over = __bind(function() {
+        return false;
+      }, this);
+      parent_over = __bind(function() {
+        return this.model.trigger("dipsy:show");
+      }, this);
+      parent_move = __bind(function() {
+        var m, pelement;
+        if (!this.model.get("stuck")) {
+          pelement = this.model.getPelement().node();
+          m = d3.svg.mouse(pelement);
+          return this.model.setAnchor({
+            "x": m[0],
+            "y": m[1]
+          });
+        }
+      }, this);
+      parent_click = __bind(function() {
+        return this.model.toggleStuck();
+      }, this);
+      if (this.model.get("handle_mouse")) {
+        dclass = this.model.get("className");
+        papa = this.model.getPelement().on("mouseover.dipsy_" + dclass, parent_over).on("mouseout.dipsy_" + dclass, parent_out).on("click.dipsy_" + dclass, parent_click);
+        element = this.model.getElement();
+        element.on("mouseout.dipsy_" + dclass, this_out);
+        element.on("mouseover.dipsy_" + dclass, this_over);
+        if (this.model.get("follow_mouse")) {
+          element.on("mousemove.dipsy_" + dclass, parent_move);
+          return papa.on("mousemove.dipsy_" + dclass, parent_move);
+        } else {
+          element.on("mousemove.dipsy_" + dclass, null);
+          return papa.on("mousemove.dipsy_" + dclass, null);
+        }
+      } else {
+        dclass = this.model.get("className");
+        papa = this.model.getPelement().on("mouseover.dipsy_" + dclass, null).on("mouseout.dipsy_" + dclass, null).on("click.dipsy_" + dclass, null);
+        element = this.model.getElement();
+        element.on("mouseout.dipsy_" + dclass, null);
+        element.on("mouseover.dipsy_" + dclass, null);
+        return false;
+      }
     };
     return PopView;
   })();

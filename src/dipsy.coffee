@@ -87,15 +87,20 @@ $(document).ready ->
             #bounding box of the parent element
             pbbox: undefined
 
+            #visibility
+            visible: false
 
 
         initialize: ->
-            console.log "init!!!"
             pelement = @getPelement().node()
+
             @set(nve: pelement.nearestViewportElement)
             @setContent(@get("content"))
             @setAnchor(@get("anchor"))
             @setOffset(@get("offset"))
+
+            @bind("dipsy:hide", @hide)
+            @bind("dipsy:show", @show)
 
         setAnchor: (point, transform = true) =>
             if(transform)
@@ -111,7 +116,6 @@ $(document).ready ->
                 @set(anchor: point)
 
         setOffset: (offset) =>
-            console.log(offset)
             if typeof(offset) == "string"
                 size = @get("size")
 
@@ -160,6 +164,17 @@ $(document).ready ->
         getRoot: () =>
             d3.select("." + @get("root"))
 
+        hide: () =>
+            @set(visible: false)
+        show: () =>
+            @set(visible: true)
+
+        setStuck: (stuck) =>
+            @set(stuck: stuck)
+
+        toggleStuck: () =>
+            @set(stuck: !@get("stuck"))
+
 
 
     class dipsy.Pops extends Backbone.Collection
@@ -176,7 +191,8 @@ $(document).ready ->
         render: =>
             console.log("render all!")
             @each((pop) ->
-                pop.get("view").render()
+                view = pop.get("view")
+                view.render()
             )
 
 
@@ -188,8 +204,15 @@ $(document).ready ->
             @model.bind "change:anchor", @updatePos
             @model.bind "change:offset", @updatePos
             @model.bind "change:center", @updatePos
-
             @model.bind "change:size", @updateSize
+            @model.bind "change:visible", @updateVisible
+
+            @bind "dipsy:rendered", @setMouseHandlers
+            @bind "dipsy:rendered", @updatePos
+            @bind "dipsy:rendered", @updateSize
+            @bind "dipsy:rendered", @updateTheme
+            @bind "dipsy:rendered", @updateVisible
+
 
 
         updateTheme: =>
@@ -201,6 +224,11 @@ $(document).ready ->
                 .attr("stroke-width", theme.stroke_width)
                 .attr("fill", theme.bg_fill)
                 .attr("fill-opacity", theme.bg_fill_opacity)
+
+        updateVisible: =>
+            visible = if @model.get("visible") then "visible" else "hidden"
+            element = @model.getElement()
+                .attr("visibility", visible)
 
         updateSize: =>
             #TODO: we can tween here
@@ -224,7 +252,6 @@ $(document).ready ->
 
 
         render: =>
-
             #console.log(@model)
             if _.isUndefined(@model.get("element"))
                 root = @model.getRoot()
@@ -243,12 +270,109 @@ $(document).ready ->
             content = element.append("svg:g")
                 .attr("class", ".dipsy_content")
             @model.get("content")(content)
-
-            @updatePos()
-            @updateSize()
-            @updateTheme()
+            @trigger("dipsy:rendered")
 
 
+        setMouseHandlers: () =>
+            #TODO: should make dipsy event/mouse handlers. Need to be able to
+            #intercept events before they trigger parent element mouse handlers
+            parent_out = () =>
+                #check if we are mousing out of our parent and into ourselves
+                ee = d3.event.toElement
+                #eles = that.element[0][0].childNodes
+                eles = @model.getElement().node().childNodes
+                for e in eles
+                    if ee == e #eles[i]
+                        console.log("CANCEL")
+                        #need to cancel the event
+                        #not sure why stopImmediatePropogation is necessary
+                        #d3.event.preventDefault()
+                        #d3.event.stopPropagation()
+                        d3.event.stopImmediatePropagation()
+                        false
+                if !@model.get("stuck")
+                    #trigger hide
+                    @model.trigger("dipsy:hide")
+                    #that.hide.apply(that, arguments);
+                    
+            this_out = () =>
+                #console.log("HIDE");
+                #check if we are mousing out of ourselves and into our parent 
+                ee = d3.event.toElement
+                #eles = that.element[0][0].childNodes
+                pelement = @model.getPelement().node()
+                eles = @model.getElement().node().childNodes
+                #console.log(pelement)
+                #console.log(ee)
+                #console.log(eles)
+                for e in eles
+                    if ee == e #eles[i]
+                        false
+
+                #if we are mousing out of the popup into the parent element
+                if (ee == pelement)
+                    false
+                else
+                    #if we are mousing out of the popup into some other element
+                    #we are making sure we call the mouseout of the parent element
+                    #console.log("exiting to other state");
+                    #TODO this seems really hacky
+                    #console.log(pelement.__onmouseout)
+                    if(pelement.__onmouseout)
+                        pelement.__onmouseout(d3.event)
+                if(!@model.get("stuck"))
+                    @model.trigger("dipsy:hide")
+
+            this_over = () =>
+                false
+
+            parent_over = () =>
+                #console.log("parent over")
+                @model.trigger("dipsy:show")
+
+            parent_move = () =>
+                #console.log("parent move")
+                if(!@model.get("stuck"))
+                    pelement = @model.getPelement().node()
+                    m = d3.svg.mouse(pelement)
+                    @model.setAnchor({"x":m[0], "y":m[1]})
+                    #that.move();
+                   
+            parent_click = () =>
+                @model.toggleStuck()
+
+            if(@model.get("handle_mouse"))
+                #mouse events on parent element
+                dclass = @model.get("className")
+                papa = @model.getPelement()
+                    .on("mouseover.dipsy_"+dclass, parent_over)
+                    .on("mouseout.dipsy_"+dclass, parent_out)
+                    .on("click.dipsy_"+dclass, parent_click)
+
+                #mouse events on the tooltip itself
+                element = @model.getElement()#.node()
+                element.on("mouseout.dipsy_"+dclass, this_out)
+                element.on("mouseover.dipsy_"+dclass, this_over)
+
+                #if we want to follow the mouse
+                if(@model.get("follow_mouse"))
+                    element.on("mousemove.dipsy_"+dclass, parent_move)
+                    papa.on("mousemove.dipsy_"+dclass, parent_move)
+                else
+                    element.on("mousemove.dipsy_"+dclass, null)
+                    papa.on("mousemove.dipsy_"+dclass, null)
+            else
+                dclass = @model.get("className")
+                papa = @model.getPelement() #d3.select(this.pelement)
+                    .on("mouseover.dipsy_"+dclass, null)
+                    .on("mouseout.dipsy_"+dclass, null)
+                    .on("click.dipsy_"+dclass, null)
+
+                #mouse events on the tooltip itself
+                element = @model.getElement()
+                element.on("mouseout.dipsy_"+dclass, null)
+                element.on("mouseover.dipsy_"+dclass, null)
+                false
 
 
 

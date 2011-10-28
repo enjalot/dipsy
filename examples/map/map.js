@@ -1,3 +1,4 @@
+$(document).ready(function() {
 
 var svg = d3.select("#chart").append("svg:svg")
     .attr("width", "960")
@@ -7,8 +8,7 @@ var svg = d3.select("#chart").append("svg:svg")
     .attr("viewBox", "0 0 960 500")
     .attr("preserveAspectRatio", "xMinYMin meet");
 
-var tooltips = new dipsy.Pops(svg)
-    tooltips.follow_mouse = true;
+var tooltips = new dipsy.Pops()
 
 d3.json("../data/enj_states_array.json", function(json) {
     var path = d3.geo.path()
@@ -63,59 +63,105 @@ d3.json("../data/enj_states_array.json", function(json) {
                             .attr("y", 50)
                             .attr("fill", "#f00")
                     }
-                    var tt = tooltips.add(this, make_tt);
-                    tt.setOffset("S");
-                    tt.setFollowMouse(true);
+
+                    var size = {w: 150, h: 90};
+                    var offset = "S";
+
+                    var theme = new dipsy.Theme({
+                        bg_fill: "#0000bb",
+                        bg_fill_opacity: .6,
+                        stroke: "#555",
+                        stroke_opacity: .9,
+                        stroke_width: 2
+                        })
+
+                    var tt = tooltips.add({
+                            className: "tooltip", 
+                            root: "states", //class name of the root svg element
+                            pelement: d.id, 
+                            content: make_tt, 
+                            offset: offset,
+                            size:size,
+                            theme: theme,
+                            follow_mouse: true
+                        })
+
+                    //var tt = tooltips.add(this, make_tt);
+                    //tt.setOffset("S");
+                    //tt.setFollowMouse(true);
 
 
                 }
                 else
                 {
                     //create a custom tooltip just using a string
-                    var tt = tooltips.add(this, d.name);
-                    tt.setOffset("S");
-                    tt.setFollowMouse(true);
+                    var size = {w: 100, h: 30};
+                    var offset = "S";
+
+                    var theme = new dipsy.Theme({
+                        bg_fill: "#2222aa",
+                        bg_fill_opacity: .6,
+                        stroke: "#555",
+                        stroke_opacity: .9,
+                        stroke_width: 2
+                        })
+
+                    var tt = tooltips.add({
+                            className: "tooltip", 
+                            root: "states", //class name of the root svg element
+                            pelement: d.id, 
+                            content: d.name, 
+                            offset: offset,
+                            size:size,
+                            theme: theme,
+                            follow_mouse: true
+                        })
+                    //var tt = tooltips.add(this, d.name);
+                    //tt.setOffset("S");
+                    //tt.setFollowMouse(true);
                 }
             });
 
 
-       
-//default style the map
-states = svg.selectAll("g.state path")
-    //.filter(function(d) { return this.getAttribute("class") != "PR"; }) //filter out Puerto Rico
-    .attr("fill", "#ffff00")
-    .attr("fill-opacity", .3)
-    .attr("stroke", "#0000ff")
-    .attr("stroke-opacity", 1.)
-    .attr("stroke-width", 1.5)
-    .on("mouseover", state_mouseover, true)
-    .on("mouseout", state_mouseout)
+    tooltips.render();
+           
+    //default style the map
+    states = svg.selectAll("g.state path")
+        //.filter(function(d) { return this.getAttribute("class") != "PR"; }) //filter out Puerto Rico
+        .attr("fill", "#ffff00")
+        .attr("fill-opacity", .3)
+        .attr("stroke", "#0000ff")
+        .attr("stroke-opacity", 1.)
+        .attr("stroke-width", 1.5)
+        .on("mouseover", state_mouseover, true)
+        .on("mouseout", state_mouseout)
 
-//console.log(states);
+    //console.log(states);
 
-//some interaction
-function state_mouseover(d,i)
-{
-    d3.select(this)
-        .attr("fill", "#ff0000");
-}
-function state_mouseout(d,i)
-{
-    d3.select(this)
-        .attr("fill", "#ffff00");
-}
+    //some interaction
+    function state_mouseover(d,i)
+    {
+        d3.select(this)
+            .attr("fill", "#ff0000");
+    }
+    function state_mouseout(d,i)
+    {
+        d3.select(this)
+            .attr("fill", "#ffff00");
+    }
 
-/*
-d3.selectAll("g.state")
-    .attr("tooltip", function(d,i)
-        {
-            tooltips.add(this, d.name);
-            //console.log(d);
-            //console.log(this.getBBox());
-        });
-*/
+    /*
+    d3.selectAll("g.state")
+        .attr("tooltip", function(d,i)
+            {
+                tooltips.add(this, d.name);
+                //console.log(d);
+                //console.log(this.getBBox());
+            });
+    */
 
 
 
+    });
 });
 

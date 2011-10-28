@@ -50,11 +50,7 @@ $(document).ready(function() {
 
 
     //var labels = new dipsy.Pops(svg)
-    //labels.follow_mouse = true;
-
-    //var tooltips = new dipsy.Pops(svg)
     var tooltips = new dipsy.Pops();
-    //tooltips.follow_mouse = true;
 
 
 
@@ -90,7 +86,6 @@ $(document).ready(function() {
            .attr("transform", "translate(" + xp + "," + yp + ")");
 
 
-        console.log("BARS");
         var paths = bars.append("svg:rect")
             .attr("fill", function(d, i) { return color(i); })
             .attr("fill-opacity", .6)
@@ -99,7 +94,6 @@ $(document).ready(function() {
             .attr("width", function(d,i) { return x.rangeBand() })
             .attr("height", function(d,i) { return y(d.pop) })
             .attr("class", function(d,i) {
-                //console.log(d, i)
                 return d.key; 
             })
             .attr("tooltip", function(d,i)
@@ -132,6 +126,7 @@ $(document).ready(function() {
                         .attr("y", 50)
                         .attr("fill", color(i))
                 }
+
                 //add the tooltip
                 var size = {w: x.rangeBand(), h: 90};
                 var anchor = {"x": x(i) + x.rangeBand()/2, "y": h - y(d.pop)};
@@ -147,7 +142,7 @@ $(document).ready(function() {
 
                 var tt = tooltips.add({
                         className: "tooltip", 
-                        root: svg.attr("id"), 
+                        root: svg.attr("class"), 
                         pelement: d.key, 
                         //content: "ASDF", 
                         content: make_tt, 
@@ -168,6 +163,11 @@ $(document).ready(function() {
 
                 return i 
             })
+        //renders all the tooltips
+        tooltips.render();
+
+        //NOTE: mouse events on elements that have tooltips need to be added after the tooltips have been rendered
+        paths 
             .on("mouseover", function(d, i) 
             {
                 d3.select(this)
@@ -179,8 +179,6 @@ $(document).ready(function() {
                     .attr("fill-opacity", .6);
             });
 
-        //renders all the tooltips
-        tooltips.render();
 
 
     }
@@ -207,7 +205,7 @@ $(document).ready(function() {
         {"key":"TX", "awesome":7}
     ]
        
-    bakebar("bar1", data, 100, 100, 800, 500);
+    bakebar("bar1", data, 100, 110, 800, 500);
 
     /*
     data = d3.range(20).map(Math.random)

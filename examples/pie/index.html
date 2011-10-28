@@ -4,7 +4,11 @@
    <title>Pie Chart</title>
     <script type="text/javascript" src="../../lib/d3/d3.js"></script> 
     <script type="text/javascript" src="../../lib/d3/d3.layout.js"></script> 
+    <script type="text/javascript" src="../../lib/jquery.min.js"></script>
     <script type="text/javascript" src="../../lib/underscore-min.js"></script>
+    <script type="text/javascript" src="../../lib/backbone.js"></script>
+
+
 
     <script type="text/javascript" src="../../src/dipsy.js"></script>
 
@@ -24,6 +28,7 @@ body {
 
     <script type="text/javascript">
         
+$(document).ready(function() {
     //setup svg canvas
     var svg = d3.select("#chart")
         .append("svg:svg")
@@ -33,7 +38,8 @@ body {
             .attr("height", "750")
             .attr("viewBox", "0 0 1000 700")
             .attr("preserveAspectRatio", "xMinYMin meet")
-            .attr("id", "charts");
+            .attr("id", "charts")
+            .attr("class", "charts");
             //.on("click", clickypie)
     var bgrect = svg.append("svg:rect")
         .attr("width", "100%")
@@ -44,8 +50,7 @@ body {
 
 
 
-    var labels = new dipsy.Pops(svg)
-    labels.follow_mouse = true;
+    var labels = new dipsy.Pops()
 
 
 
@@ -73,27 +78,43 @@ body {
             .attr("fill", function(d, i) { return color(i); })
             .attr("fill-opacity", .6)
             .attr("d", arc)
+            .attr("class", function(d,i) { return classname+"_"+i})
             .attr("tooltip", function(d,i)
             {
-                var lp = place_label(d, r + 30);
-                var content_format = d3.format(".2r");
-                var content = content_format(d.value);
-                var label = labels.add(this, content);
-                label.setCleat(lp);
-                label.setOffset("center");
-                console.log(label.offset);
-                //theme our tooltip
-                var lt = label.getTheme();
-                lt.bg_fill = color(i);
-                lt.bg_fill_opacity = .6;
-                lt.stroke = "#555";
-                lt.stroke_opacity = .9;
-                lt.stroke_width = 2;
-                label.update();
+                    var size = {w: 30, h: 30};
+                    var offset = "center";
+                    var lp = place_label(d, r + 30);
+                    var content_format = d3.format(".2r");
+                    var content = content_format(d.value);
+
+                    var theme = new dipsy.Theme({
+                        bg_fill: color(i),
+                        bg_fill_opacity: .6,
+                        stroke: "#555",
+                        stroke_opacity: .9,
+                        stroke_width: 2
+                        })
+
+                    var tt = labels.add({
+                            className: "tooltip", 
+                            root: "charts", //class name of the root svg element
+                            pelement: classname+"_"+i, 
+                            anchor: lp,
+                            content: content, 
+                            offset: offset,
+                            size:size,
+                            theme: theme,
+                            //follow_mouse: true
+                        })
 
                 //label.setStuck(true);
                 //label.show();
             })
+
+
+        labels.render()
+
+        paths
             .on("mouseover", function(d, i) 
             {
                 d3.select(this)
@@ -154,6 +175,7 @@ body {
     };
     */
    
+});
    </script>
  </body>
 </html>
