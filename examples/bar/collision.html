@@ -10,6 +10,7 @@
     <script type="text/javascript" src="../../lib/backbone.js"></script>
 
 
+    <script type="text/javascript" src="../../src/d3force.js"></script>
     <script type="text/javascript" src="../../src/dipsy.js"></script>
 
    <style type="text/css">
@@ -81,7 +82,7 @@ $(document).ready(function() {
     var xp = 100;
     var yp = 90;
     var w = 800;
-    var h = 500;
+    var h = 400;
 
     classname = "bar1";
 
@@ -157,7 +158,7 @@ $(document).ready(function() {
 
 
             //add the tooltip
-            var size = {w: x.rangeBand() + 40, h: 90};
+            var size = {w: x.rangeBand() + 60, h: 90};
             var anchor = {"x": x(i) + x.rangeBand()/2, "y": h};
             var offset = "N";
 
@@ -178,19 +179,24 @@ $(document).ready(function() {
                     anchor: anchor, 
                     offset: offset,
                     size:size,
-                    theme: theme
+                    theme: theme,
+                    posted: true,
+                    visible: true
                 })
-
-            //tt.setStuck(false);
-            //tt.hide();
-            //tt.show();
-            //tt.setFollowMouse(true);
-
 
             return i 
         })
 
     tooltips.render()
+    tooltips.initForce()
+    count = tooltips.calcColliders()
+    //if more than half of the tooltips are colliding we should rotate them
+    if(count > data.length / 2)
+    {
+        tooltips.rotate()
+    }
+    count = tooltips.calcColliders();
+    console.log(count)
 
     paths
         .on("mouseover", function(d, i) 

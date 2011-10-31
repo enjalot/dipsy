@@ -26,10 +26,12 @@ $(document).ready(function() {
   dipsy.Pop = (function() {
     __extends(Pop, Backbone.Model);
     function Pop() {
+      this.toggleRotated = __bind(this.toggleRotated, this);
       this.togglePosted = __bind(this.togglePosted, this);
       this.setPosted = __bind(this.setPosted, this);
       this.show = __bind(this.show, this);
       this.hide = __bind(this.hide, this);
+      this.getSize = __bind(this.getSize, this);
       this.getPos = __bind(this.getPos, this);
       this.getRoot = __bind(this.getRoot, this);
       this.getPelement = __bind(this.getPelement, this);
@@ -53,6 +55,7 @@ $(document).ready(function() {
         x: 0,
         y: 0
       },
+      offset_code: "",
       center: {
         x: 0,
         y: 0
@@ -66,6 +69,7 @@ $(document).ready(function() {
       handle_mouse: true,
       follow_mouse: false,
       posted: false,
+      rotated: false,
       drag_move: false,
       force_move: false,
       fixed: true,
@@ -111,10 +115,13 @@ $(document).ready(function() {
         });
       }
     };
-    Pop.prototype.setCenter = function(point, transform) {
+    Pop.prototype.setCenter = function(point, transform, silent) {
       var anchor, matrix, mp, nve, offset, p, pelement, x, y;
       if (transform == null) {
         transform = true;
+      }
+      if (silent == null) {
+        silent = false;
       }
       anchor = this.get("anchor");
       offset = this.get("offset");
@@ -136,10 +143,19 @@ $(document).ready(function() {
           x: x,
           y: y
         }
+      }, {
+        silent: silent
       });
     };
     Pop.prototype.setOffset = function(offset) {
       var size;
+      if (typeof offset === "undefined") {
+        offset = this.get("offset_code");
+      } else {
+        this.set({
+          "offset_code": offset
+        });
+      }
       if (typeof offset === "string") {
         size = this.get("size");
         switch (offset) {
@@ -186,16 +202,12 @@ $(document).ready(function() {
               }
             });
         }
-      } else if (typeof offset === "undefined") {
+      } else {
         return this.set({
           offset: {
             x: 0,
             y: 0
           }
-        });
-      } else {
-        return this.set({
-          offset: offset
         });
       }
     };
@@ -237,6 +249,9 @@ $(document).ready(function() {
         y: y
       };
     };
+    Pop.prototype.getSize = function() {
+      return this.get("size");
+    };
     Pop.prototype.hide = function() {
       return this.set({
         visible: false
@@ -257,6 +272,20 @@ $(document).ready(function() {
         posted: !this.get("posted")
       });
     };
+    Pop.prototype.toggleRotated = function() {
+      var size;
+      this.set({
+        rotated: !this.get("rotated")
+      });
+      size = this.getSize();
+      this.set({
+        size: {
+          w: size.h,
+          h: size.w
+        }
+      });
+      return this.setOffset();
+    };
     return Pop;
   })();
   dipsy.Pops = (function() {
@@ -266,9 +295,12 @@ $(document).ready(function() {
       this.getColliders = __bind(this.getColliders, this);
       this.getNeighbors = __bind(this.getNeighbors, this);
       this.buildQuadTree = __bind(this.buildQuadTree, this);
+      this.getNode = __bind(this.getNode, this);
+      this.updatePos = __bind(this.updatePos, this);
       this.stopForce = __bind(this.stopForce, this);
       this.startForce = __bind(this.startForce, this);
       this.initForce = __bind(this.initForce, this);
+      this.rotate = __bind(this.rotate, this);
       this.render = __bind(this.render, this);
       this.select = __bind(this.select, this);
       this.addView = __bind(this.addView, this);
@@ -278,7 +310,16 @@ $(document).ready(function() {
     Pops.prototype.url = "/";
     Pops.prototype.force_status = false;
     Pops.prototype.initialize = function() {
-      return this.bind("add", this.addView);
+      this.bind("add", this.addView);
+      this.force = d3.layout.force().gravity(0).charge(-50).size([w, h]).annealing(.95);
+      this.nodes = this.force.nodes();
+      return this.each(__bind(function(pop) {
+        "pop.bind \"change:anchor\", @updatePos pop\npop.bind \"change:offset\", @updatePos pop\npop.bind \"change:center\", @updatePos pop";
+        var node;
+        node = pop.getPos();
+        node.cid = pop.cid;
+        return this.nodes.push(node);
+      }, this));
     };
     Pops.prototype.addView = function(pop) {
       return pop.set({
@@ -300,15 +341,12 @@ $(document).ready(function() {
         return view.render();
       });
     };
-    Pops.prototype.initForce = function(w, h) {
-      this.force = d3.layout.force().gravity(0).charge(-50).size([w, h]).annealing(.95);
-      this.nodes = this.force.nodes();
-      this.each(__bind(function(pop) {
-        var node;
-        node = pop.getPos();
-        node.cid = pop.cid;
-        return this.nodes.push(node);
+    Pops.prototype.rotate = function() {
+      return this.each(__bind(function(pop) {
+        return pop.toggleRotated();
       }, this));
+    };
+    Pops.prototype.initForce = function(w, h) {
       return this.force.on("tick", __bind(function(e) {
         var k;
         this.force_status = true;
@@ -324,7 +362,7 @@ $(document).ready(function() {
           anchor = pop.get("anchor");
           node.x += (anchor.x - node.x) * k;
           node.y += (anchor.y - node.y) * k;
-          return pop.setCenter(node, false);
+          return pop.setCenter(node, false, false);
         }, this));
       }, this));
     };
@@ -334,22 +372,39 @@ $(document).ready(function() {
     Pops.prototype.stopForce = function() {
       return this.force.stop();
     };
+    Pops.prototype.updatePos = function(pop) {
+      var node, pos;
+      node = this.getNode(pop);
+      pos = pop.getPos();
+      node.x = pos.x;
+      return node.y = pos.y;
+    };
+    Pops.prototype.getNode = function(pop) {
+      var node;
+      return node = _.find(this.nodes, __bind(function(n) {
+        return n.cid === pop.cid;
+      }, this));
+    };
     Pops.prototype.buildQuadTree = function() {
       console.log("build qt");
-      this.qt = d3.geom.quadtree(this.nodes);
-      return console.log(this.qt);
+      return this.qt = d3.geom.quadtree(this.nodes);
     };
     Pops.prototype.getNeighbors = function(pop) {
-      var nn, x0, x3, y0, y3;
+      var n, nn, size, x0, x3, y0, y3;
+      size = pop.getSize();
+      n = this.getNode(pop);
       nn = [];
-      x0 = pop.x;
-      y0 = pop.y;
-      x3 = pop.x + pop.w;
-      y3 = pop.y + pop.h;
+      x0 = n.x - size.w;
+      y0 = n.y - size.h;
+      x3 = n.x + size.w;
+      y3 = n.y + size.h;
       this.qt.visit(__bind(function(node, x1, y1, x2, y2) {
         var p;
         p = node.point;
-        if (p && (p.x >= x0) && (p.x < x3) && (p.y >= y0) && (p.y < y3) && p !== pop) {
+        if (p && (p.x >= x0) && (p.x < x3) && (p.y >= y0) && (p.y < y3) && p !== n) {
+          console.log("PUSH");
+          console.log(p);
+          console.log(pop);
           nn.push(p);
         }
         return x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0;
@@ -368,7 +423,22 @@ $(document).ready(function() {
       return colliders;
     };
     Pops.prototype.calcColliders = function() {
-      return "tooltips.buildQuadTree()\ncounts = []\ncount = 0 \n/*\ntooltips.pops.forEach(function(pop)\n{\n    nn = tooltips.getNeighbors(pop).length\n    counts.push(nn)\n    if(nn > 0 )\n        count++\n});\nconsole.log(counts);\nconsole.log(count);\n*/\n\nconsole.log(\"NY\")\npop = tooltips.pops[2];\nconsole.log(pop)\nnn = tooltips.getNeighbors(pop)\nconsole.log(nn)";
+      var count, counts;
+      if (!this.qt) {
+        this.buildQuadTree();
+      }
+      counts = [];
+      count = 0;
+      console.log(this.nodes);
+      this.each(__bind(function(pop) {
+        var nn;
+        nn = this.getNeighbors(pop);
+        counts.push(nn);
+        if (nn.length > 0) {
+          return count++;
+        }
+      }, this));
+      return count;
     };
     return Pops;
   })();
@@ -387,6 +457,7 @@ $(document).ready(function() {
       this.model.bind("change:anchor", this.updatePos);
       this.model.bind("change:offset", this.updatePos);
       this.model.bind("change:center", this.updatePos);
+      this.model.bind("change:rotated", this.updatePos);
       this.model.bind("change:size", this.updateSize);
       this.model.bind("change:visible", this.updateVisible);
       this.bind("dipsy:rendered", this.setMouseHandlers);
@@ -413,11 +484,16 @@ $(document).ready(function() {
       return bgrect = element.select(".dipsy_bgrect").attr("width", size.w).attr("height", size.h);
     };
     PopView.prototype.updatePos = function() {
-      var element, pos, size;
+      var content, element, offset, pos, size;
       element = this.model.getElement();
       pos = this.model.getPos();
       size = this.model.get("size");
-      return element.attr("transform", "translate(" + [pos.x - size.w / 2, pos.y - size.h / 2] + ")");
+      element.attr("transform", "translate(" + [pos.x - size.w / 2, pos.y - size.h / 2] + ")");
+      if (this.model.get("rotated")) {
+        offset = this.model.get("offset");
+        content = element.select("g.dipsy_content");
+        return content.attr("transform", "rotate(90 " + [0, 0] + ")translate(" + [0, -offset.y] + ")");
+      }
     };
     PopView.prototype.render = function() {
       var bgrect, content, element, elid, root;
@@ -433,8 +509,9 @@ $(document).ready(function() {
         element = this.model.getElement();
         element.select(".dipsy_content").remove();
       }
-      content = element.append("svg:g").attr("class", ".dipsy_content");
+      content = element.append("svg:g").attr("class", "dipsy_content");
       this.model.get("content")(content);
+      content.append("svg:text").text(this.model.cid);
       return this.trigger("dipsy:rendered");
     };
     PopView.prototype.setMouseHandlers = function() {

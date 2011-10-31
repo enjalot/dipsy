@@ -34,8 +34,9 @@ $(document).ready ->
             #
             #the anchor point for the tooltip
             anchor: {x:0, y:0}
-            #offset from the anchor (orientation in a direction like North or South
+            #offset from the anchor (orientation in a direction like North or South)
             offset: {x:0, y:0}
+            offset_code: ""
             #center coordinate of the tooltip (relative to the anchor + offset)
             #change this to move the tooltip around 
             center: {x:0, y:0}
@@ -58,6 +59,9 @@ $(document).ready ->
             #if true this tooltip will stay on regardless of mouse movement over parent
             #stuck: false
             posted: false
+
+            #rotate by 90 degrees clockwise
+            rotated: false
 
 
             #if true this tooltip is moveable by mouse dragging
@@ -119,7 +123,7 @@ $(document).ready ->
             else
                 @set(anchor: point)
 
-        setCenter: (point, transform = true) =>
+        setCenter: (point, transform = true, silent = false) =>
             anchor = @get("anchor")
             offset = @get("offset")
 
@@ -138,10 +142,15 @@ $(document).ready ->
 
             x = p.x - offset.x - anchor.x
             y = p.y - offset.y - anchor.y
-            @set(center: {x: x, y: y})
+            @set center: {x: x, y: y}, (silent: silent)
 
 
         setOffset: (offset) =>
+            if typeof(offset) == "undefined"
+                offset = @get("offset_code")
+            else
+                @set("offset_code": offset)
+
             if typeof(offset) == "string"
                 size = @get("size")
 
@@ -158,10 +167,8 @@ $(document).ready ->
                         @set offset: (x: -size.w - 10, y: 0)
                     else
                         @set offset: (x: 0, y: 0)
-            else if typeof(offset) == "undefined"
-                @set offset: (x: 0, y: 0)
             else
-                @set offset: offset
+                @set offset: (x: 0, y: 0)
 
 
         setContent: (content) =>
@@ -199,6 +206,9 @@ $(document).ready ->
             y = anchor.y + offset.y + center.y
             return x:x, y:y
 
+        getSize: () =>
+            @get("size")
+
 
         hide: () =>
             @set(visible: false)
@@ -211,6 +221,13 @@ $(document).ready ->
         togglePosted: () =>
             @set(posted: !@get("posted"))
 
+        toggleRotated: () =>
+            @set(rotated: !@get("rotated"))
+            size = @getSize()
+            @set(size: {w:size.h, h:size.w})
+            @setOffset()
+
+
 
 
     class dipsy.Pops extends Backbone.Collection
@@ -221,6 +238,34 @@ $(document).ready ->
         initialize: ->
             @bind("add", @addView)
             #@bind("force:stopped", @checkCollisions)
+
+            #TODO: not sure if always want to init a force here, 
+            #but we want the nodes for collision detection
+            #and most likely all of our usecases will use force to some extent
+            @force = d3.layout.force()
+                .gravity(0)
+                .charge(-50)
+                .size([w, h])
+                #annealing defaults to .99
+                .annealing(.95)
+
+            @nodes = @force.nodes()
+            @each((pop) =>
+
+                #TODO: figure out what to do here, this will be redundant during simulation
+                #but we will want this to update the node positions if pops can be moved
+                #outside of the simulation
+                """
+                pop.bind "change:anchor", @updatePos pop
+                pop.bind "change:offset", @updatePos pop
+                pop.bind "change:center", @updatePos pop
+                """
+
+                node = pop.getPos()
+                node.cid = pop.cid
+                @nodes.push node
+            )
+
 
         addView: (pop) =>
             pop.set(view: new dipsy.PopView({model: pop}))
@@ -239,21 +284,13 @@ $(document).ready ->
                 #TODO: bind visibility change events
             )
 
-        initForce: (w,h) =>
-            @force = d3.layout.force()
-                .gravity(0)
-                .charge(-50)
-                .size([w, h])
-                #annealing defaults to .99
-                .annealing(.95)
-
-            @nodes = @force.nodes()
+        rotate: =>
             @each((pop) =>
-                node = pop.getPos()
-                node.cid = pop.cid
-                @nodes.push node
+                pop.toggleRotated()
             )
 
+        initForce: (w,h) =>
+            
             #console.log @nodes
 
             @force.on("tick", (e) =>
@@ -275,7 +312,8 @@ $(document).ready ->
                     #node.y += .003 * (y - node.y) * -k;
                 
                     #labels.pops[i].setCleat(node, false);
-                    pop.setCenter(node, false)
+                    #new position, transform, silent
+                    pop.setCenter(node, false, false)
                 )
 
             )
@@ -286,23 +324,43 @@ $(document).ready ->
         stopForce: =>
             @force.stop()
 
+        updatePos: (pop) =>
+            node = @getNode(pop)
+            pos = pop.getPos()
+            node.x = pos.x
+            node.y = pos.y
+
+        getNode: (pop) =>
+            node = _.find(@nodes, (n) =>
+                n.cid == pop.cid
+            )
+
+
+
         buildQuadTree: () =>
             console.log("build qt")
             @qt = d3.geom.quadtree(@nodes)
-            console.log(@qt)
+            #console.log(@qt)
 
         getNeighbors: (pop) =>
             #TODO: build quadtree if not already built
-
             #get the neighboring pops of the given pop
+            #pos = pop.getPos()
+            size = pop.getSize()
+            n = @getNode(pop)
             nn = []
-            x0 = pop.x
-            y0 = pop.y
-            x3 = pop.x + pop.w
-            y3 = pop.y + pop.h
+            x0 = n.x - size.w
+            y0 = n.y - size.h
+            x3 = n.x + size.w
+            y3 = n.y + size.h
             @qt.visit((node, x1, y1, x2, y2) =>
                 p = node.point
-                if (p && (p.x >= x0) && (p.x < x3) && (p.y >= y0) && (p.y < y3) && p != pop) then nn.push(p)
+                if (p && (p.x >= x0) && (p.x < x3) && (p.y >= y0) && (p.y < y3) && p != n)
+                    console.log("PUSH")
+                    console.log(p)
+                    console.log(pop)
+                    nn.push(p)
+                #if (p && (p.x >= x0) && (p.x < x3) && (p.y >= y0) && (p.y < y3) ) then nn.push(p)
                 x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0
             )
             nn
@@ -318,28 +376,23 @@ $(document).ready ->
             colliders
         
         calcColliders: =>
-            """
-            tooltips.buildQuadTree()
-            counts = []
-            count = 0 
-            /*
-            tooltips.pops.forEach(function(pop)
-            {
-                nn = tooltips.getNeighbors(pop).length
-                counts.push(nn)
-                if(nn > 0 )
-                    count++
-            });
-            console.log(counts);
-            console.log(count);
-            */
+            unless @qt
+                @buildQuadTree()
 
-            console.log("NY")
-            pop = tooltips.pops[2];
-            console.log(pop)
-            nn = tooltips.getNeighbors(pop)
-            console.log(nn)
-            """
+            counts = []
+            count = 0
+            console.log(@nodes)
+            @each((pop) =>
+                #nn = tooltips.getNeighbors(pop).length
+                nn = @getNeighbors(pop)
+                counts.push(nn)
+                if(nn.length > 0 )
+                    count++
+            )
+            #console.log(counts)
+            #console.log(count)
+            count
+
 
 
 
@@ -351,6 +404,7 @@ $(document).ready ->
             @model.bind "change:anchor", @updatePos
             @model.bind "change:offset", @updatePos
             @model.bind "change:center", @updatePos
+            @model.bind "change:rotated", @updatePos
             @model.bind "change:size", @updateSize
             @model.bind "change:visible", @updateVisible
 
@@ -390,8 +444,14 @@ $(document).ready ->
             element = @model.getElement()
             pos = @model.getPos()
             size = @model.get("size")
+            #center = pos.
             element.attr("transform", "translate(" + [pos.x - size.w / 2, pos.y - size.h / 2] + ")")
 
+            if @model.get("rotated")
+                offset = @model.get("offset")
+                content = element.select("g.dipsy_content")
+                #content.attr("transform", "rotate(90 " + [0, 0] + ")translate(" + [size.w / 2, -size.h / 2] + ")")
+                content.attr("transform", "rotate(90 " + [0, 0] + ")translate(" + [0, -offset.y] + ")")
 
 
         render: =>
@@ -411,8 +471,14 @@ $(document).ready ->
 
             #model's content is a function that expects an element to append to
             content = element.append("svg:g")
-                .attr("class", ".dipsy_content")
+                .attr("class", "dipsy_content")
             @model.get("content")(content)
+
+            #testing
+            content.append("svg:text")
+                .text(@model.cid)
+
+
             @trigger("dipsy:rendered")
 
 
