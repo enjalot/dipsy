@@ -63,6 +63,9 @@ $(document).ready ->
             #rotate by 90 degrees clockwise
             rotated: false
 
+            #if set to true, determine size from content
+            auto_size: false
+
 
             #if true this tooltip is moveable by mouse dragging
             drag_move: false
@@ -237,6 +240,7 @@ $(document).ready ->
 
         initialize: ->
             @bind("add", @addView)
+            @bind("add", @addNode)
             #@bind("force:stopped", @checkCollisions)
 
             #TODO: not sure if always want to init a force here, 
@@ -245,30 +249,20 @@ $(document).ready ->
             @force = d3.layout.force()
                 .gravity(0)
                 .charge(-50)
-                .size([w, h])
                 #annealing defaults to .99
-                .annealing(.95)
+                .annealing(.96)
 
             @nodes = @force.nodes()
-            @each((pop) =>
-
-                #TODO: figure out what to do here, this will be redundant during simulation
-                #but we will want this to update the node positions if pops can be moved
-                #outside of the simulation
-                """
-                pop.bind "change:anchor", @updatePos pop
-                pop.bind "change:offset", @updatePos pop
-                pop.bind "change:center", @updatePos pop
-                """
-
-                node = pop.getPos()
-                node.cid = pop.cid
-                @nodes.push node
-            )
-
+            
 
         addView: (pop) =>
             pop.set(view: new dipsy.PopView({model: pop}))
+
+        addNode: (pop) =>
+            node = pop.getPos()
+            node.cid = pop.cid
+            @nodes.push node
+
 
         select: (id) =>
             @find((pop) =>
@@ -290,8 +284,8 @@ $(document).ready ->
             )
 
         initForce: (w,h) =>
-            
             #console.log @nodes
+            @force.size([w, h])
 
             @force.on("tick", (e) =>
                 #console.log(e.alpha, e.stopping)
@@ -414,6 +408,9 @@ $(document).ready ->
             @bind "dipsy:rendered", @updateTheme
             @bind "dipsy:rendered", @updateVisible
 
+            if @model.get("auto_size")
+                @bind "dipsy:rendered", @autoSize
+
 
 
         updateTheme: =>
@@ -438,6 +435,11 @@ $(document).ready ->
             bgrect = element.select(".dipsy_bgrect")
                 .attr("width", size.w)
                 .attr("height", size.h)
+
+        autoSize: =>
+            element = @model.getElement()
+            bbox = element.node().getBBox()
+            @model.set(size: {w: bbox.width, h: bbox.height})
 
         updatePos: =>
             #TODO: we can tween here
@@ -475,8 +477,8 @@ $(document).ready ->
             @model.get("content")(content)
 
             #testing
-            content.append("svg:text")
-                .text(@model.cid)
+            #content.append("svg:text")
+            #    .text(@model.cid)
 
 
             @trigger("dipsy:rendered")

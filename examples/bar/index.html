@@ -9,6 +9,7 @@
     <script type="text/javascript" src="../../lib/underscore-min.js"></script>
     <script type="text/javascript" src="../../lib/backbone.js"></script>
 
+    <script type="text/javascript" src="../../src/d3force.js"></script>
     <script type="text/javascript" src="../../src/dipsy.js"></script>
 
    <style type="text/css">
@@ -66,7 +67,7 @@ $(document).ready(function() {
 
     //Other json we want to use in the tooltips
     var ttdata = [
-        {"key":"FL", "awesome":8},
+        {"key":"FL", "awesome":"asdfasdlfjlsdjflsdjfldsk"},
         {"key":"CA", "awesome":9},
         {"key":"NY", "awesome":5},
         {"key":"NC", "awesome":3},
@@ -191,6 +192,8 @@ $(document).ready(function() {
         })
     //renders all the tooltips
     tooltips.render();
+    fl = tooltips.select("FL").get("view");
+    fl.autoSize();
 
     //NOTE: mouse events on elements that have tooltips need to be added after the tooltips have been rendered
     paths 

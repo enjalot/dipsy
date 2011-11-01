@@ -70,6 +70,7 @@ $(document).ready(function() {
       follow_mouse: false,
       posted: false,
       rotated: false,
+      auto_size: false,
       drag_move: false,
       force_move: false,
       fixed: true,
@@ -303,6 +304,7 @@ $(document).ready(function() {
       this.rotate = __bind(this.rotate, this);
       this.render = __bind(this.render, this);
       this.select = __bind(this.select, this);
+      this.addNode = __bind(this.addNode, this);
       this.addView = __bind(this.addView, this);
       Pops.__super__.constructor.apply(this, arguments);
     }
@@ -311,15 +313,9 @@ $(document).ready(function() {
     Pops.prototype.force_status = false;
     Pops.prototype.initialize = function() {
       this.bind("add", this.addView);
-      this.force = d3.layout.force().gravity(0).charge(-50).size([w, h]).annealing(.95);
-      this.nodes = this.force.nodes();
-      return this.each(__bind(function(pop) {
-        "pop.bind \"change:anchor\", @updatePos pop\npop.bind \"change:offset\", @updatePos pop\npop.bind \"change:center\", @updatePos pop";
-        var node;
-        node = pop.getPos();
-        node.cid = pop.cid;
-        return this.nodes.push(node);
-      }, this));
+      this.bind("add", this.addNode);
+      this.force = d3.layout.force().gravity(0).charge(-50).annealing(.96);
+      return this.nodes = this.force.nodes();
     };
     Pops.prototype.addView = function(pop) {
       return pop.set({
@@ -327,6 +323,12 @@ $(document).ready(function() {
           model: pop
         })
       });
+    };
+    Pops.prototype.addNode = function(pop) {
+      var node;
+      node = pop.getPos();
+      node.cid = pop.cid;
+      return this.nodes.push(node);
     };
     Pops.prototype.select = function(id) {
       return this.find(__bind(function(pop) {
@@ -347,6 +349,7 @@ $(document).ready(function() {
       }, this));
     };
     Pops.prototype.initForce = function(w, h) {
+      this.force.size([w, h]);
       return this.force.on("tick", __bind(function(e) {
         var k;
         this.force_status = true;
@@ -448,6 +451,7 @@ $(document).ready(function() {
       this.setMouseHandlers = __bind(this.setMouseHandlers, this);
       this.render = __bind(this.render, this);
       this.updatePos = __bind(this.updatePos, this);
+      this.autoSize = __bind(this.autoSize, this);
       this.updateSize = __bind(this.updateSize, this);
       this.updateVisible = __bind(this.updateVisible, this);
       this.updateTheme = __bind(this.updateTheme, this);
@@ -464,7 +468,10 @@ $(document).ready(function() {
       this.bind("dipsy:rendered", this.updatePos);
       this.bind("dipsy:rendered", this.updateSize);
       this.bind("dipsy:rendered", this.updateTheme);
-      return this.bind("dipsy:rendered", this.updateVisible);
+      this.bind("dipsy:rendered", this.updateVisible);
+      if (this.model.get("auto_size")) {
+        return this.bind("dipsy:rendered", this.autoSize);
+      }
     };
     PopView.prototype.updateTheme = function() {
       var bgrect, element, theme;
@@ -482,6 +489,17 @@ $(document).ready(function() {
       element = this.model.getElement();
       size = this.model.get("size");
       return bgrect = element.select(".dipsy_bgrect").attr("width", size.w).attr("height", size.h);
+    };
+    PopView.prototype.autoSize = function() {
+      var bbox, element;
+      element = this.model.getElement();
+      bbox = element.node().getBBox();
+      return this.model.set({
+        size: {
+          w: bbox.width,
+          h: bbox.height
+        }
+      });
     };
     PopView.prototype.updatePos = function() {
       var content, element, offset, pos, size;
@@ -511,7 +529,6 @@ $(document).ready(function() {
       }
       content = element.append("svg:g").attr("class", "dipsy_content");
       this.model.get("content")(content);
-      content.append("svg:text").text(this.model.cid);
       return this.trigger("dipsy:rendered");
     };
     PopView.prototype.setMouseHandlers = function() {

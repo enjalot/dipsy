@@ -121,7 +121,8 @@ $(document).ready(function() {
                     theme: theme,
                     //follow_mouse: true
                     posted: true,
-                    visible: true
+                    visible: true,
+                    auto_size: true
                 })
 
                 var tt = labels.at(labels.length-1);
@@ -141,7 +142,7 @@ $(document).ready(function() {
 
 
             labels.render()
-            labels.initForce()
+            labels.initForce(w, h)
 
             paths
             .on("mouseover", function(d, i) 
