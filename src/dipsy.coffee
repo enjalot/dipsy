@@ -59,6 +59,8 @@ $(document).ready ->
             #if true this tooltip will stay on regardless of mouse movement over parent
             #stuck: false
             posted: false
+            #if this is true, clicking on the parent element will turn posting on or off
+            posting: true
 
             #rotate by 90 degrees clockwise
             rotated: false
@@ -553,7 +555,8 @@ $(document).ready ->
                     #that.move();
                    
             parent_click = () =>
-                @model.togglePosted()
+                if @model.get("posting")
+                    @model.togglePosted()
 
             if(@model.get("handle_mouse"))
                 #mouse events on parent element

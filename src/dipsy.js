@@ -69,6 +69,7 @@ $(document).ready(function() {
       handle_mouse: true,
       follow_mouse: false,
       posted: false,
+      posting: true,
       rotated: false,
       auto_size: false,
       drag_move: false,
@@ -589,7 +590,9 @@ $(document).ready(function() {
         }
       }, this);
       parent_click = __bind(function() {
-        return this.model.togglePosted();
+        if (this.model.get("posting")) {
+          return this.model.togglePosted();
+        }
       }, this);
       if (this.model.get("handle_mouse")) {
         dclass = this.model.get("className");
